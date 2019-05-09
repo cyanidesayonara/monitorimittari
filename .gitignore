@@ -1,3 +1,6 @@
 venv*
 .vscode
 get_value*
+__pycache__
+default*
+get_value*
