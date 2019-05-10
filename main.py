@@ -107,6 +107,7 @@ class MainWindow(QMainWindow):
             "Oikea KT VA"
         ]
         self.threadpool = QThreadPool()
+        self.device = None
 
     def showDevices(self):
         for index, device in enumerate(self.all_hids, 1):
@@ -115,36 +116,37 @@ class MainWindow(QMainWindow):
             self.ui.deviceBox.addItem(
                 "{0} => {1}".format(index, device_name))
 
-    def sendData(self, device, out_report):
-        while device.is_plugged():
-            buffer = [0x00, 0x46, 0x30, 0x0d,
-                      0x0a, 0x00, 0x00, 0x00, 0x00]
-            out_report[0].set_raw_data(buffer)
-            out_report[0].send()
-            print("xxx")
-            # just keep the device opened to receive events
-            sleep(0.5)
-        device.close()
-
-    def selectDevice(self, selection):
-        self.ui.label.setText("xxx")
-        device = self.all_hids[selection]
-
+    def sendData(self):
         try:
-            device.open()
-            out_report = device.find_output_reports()
+            self.device.open()
+            out_report = self.device.find_output_reports()
             # set custom raw data handler
-            device.set_raw_data_handler(self.sample_handler)
+            self.device.set_raw_data_handler(self.sample_handler)
 
             self.ui.label.setText("Odotetaan dataa...")
 
-            worker = Worker(self.sendData(device, out_report))
-            self.threadpool.start(worker)
+            while self.device.is_plugged():
+                buffer = [0x00, 0x46, 0x30, 0x0d,
+                          0x0a, 0x00, 0x00, 0x00, 0x00]
+                out_report[0].set_raw_data(buffer)
+                out_report[0].send()
+                # just keep the device opened to receive events
+                sleep(0.5)
+            self.device.close()
 
         except Exception as e:
-            print(device)
+            print(self.device)
             print(str(e))
             self.ui.label.setText("No input data")
+
+    def selectDevice(self, selection):
+        if self.device:
+            self.device.close()
+        self.ui.label.setText("xxx")
+        self.device = self.all_hids[selection]
+
+        worker = Worker(self.sendData)
+        self.threadpool.start(worker)
 
     def formatShelf(self):
         """
@@ -313,8 +315,7 @@ class MainWindow(QMainWindow):
                 measurements = shelve.open(self.shelfFile)
                 measurement = str(round(float(value), 3)
                                   ).ljust(5, "0") + "\t" + measurements[str(self.currentIndex)]["name"]
-                print(measurement)
-                self.ui.label.setText("xxx")
+                self.ui.label.setText(measurement)
                 measurements.close()
 
         # if file is used by another process

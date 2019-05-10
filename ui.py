@@ -24,13 +24,16 @@ class Ui_MainWindow(object):
         self.forwardButton.setGeometry(QtCore.QRect(240, 320, 75, 23))
         self.forwardButton.setObjectName("forwardButton")
         self.deviceBox = QtWidgets.QComboBox(self.centralwidget)
-        self.deviceBox.setGeometry(QtCore.QRect(110, 20, 251, 22))
+        self.deviceBox.setGeometry(QtCore.QRect(110, 30, 251, 22))
         self.deviceBox.setObjectName("deviceBox")
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(176, 70, 121, 20))
         self.label.setText("")
         self.label.setAlignment(QtCore.Qt.AlignCenter)
         self.label.setObjectName("label")
+        self.deviceBoxLabel = QtWidgets.QLabel(self.centralwidget)
+        self.deviceBoxLabel.setGeometry(QtCore.QRect(110, 6, 91, 20))
+        self.deviceBoxLabel.setObjectName("deviceBoxLabel")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 495, 21))
@@ -48,6 +51,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "Monitorimittari"))
         self.backwardButton.setText(_translate("MainWindow", "<-"))
         self.forwardButton.setText(_translate("MainWindow", "->"))
+        self.deviceBoxLabel.setText(_translate("MainWindow", "Choose device"))
 
 
 if __name__ == "__main__":
