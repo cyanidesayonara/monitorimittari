@@ -1,0 +1,5 @@
+{
+    "mappings": "default.json",
+    "excelInputFile": "C:/Mittaus/mittaus.xlsm",
+    "excelOutputFile": "C:/Mittaus/output.xlsm"
+}

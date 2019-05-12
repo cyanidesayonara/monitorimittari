@@ -1,4 +1,13 @@
 # monitorimittari
 
+## PyQt5 tutorial
+
+https://youtu.be/ksW59gYEl6Q
+
 ## Threading how-to
-https://kushaldas.in/posts/pyqt5-thread-example.html
+
+https://www.mfitzp.com/article/multithreading-pyqt-applications-with-qthreadpool/
+
+# Generate ui file
+
+venv/Scripts/pyuic5 -x ui.ui -o ui.py
