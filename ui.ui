@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>780</width>
-    <height>681</height>
+    <height>731</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,33 +17,23 @@
    <widget class="QPushButton" name="backwardButton">
     <property name="geometry">
      <rect>
-      <x>310</x>
-      <y>610</y>
-      <width>75</width>
-      <height>23</height>
+      <x>60</x>
+      <y>20</y>
+      <width>141</width>
+      <height>41</height>
      </rect>
     </property>
     <property name="text">
      <string>&lt;-</string>
     </property>
    </widget>
-   <widget class="QListWidget" name="resultList_1">
-    <property name="geometry">
-     <rect>
-      <x>260</x>
-      <y>110</y>
-      <width>131</width>
-      <height>491</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QPushButton" name="forwardButton">
     <property name="geometry">
      <rect>
-      <x>410</x>
-      <y>610</y>
-      <width>75</width>
-      <height>23</height>
+      <x>570</x>
+      <y>20</y>
+      <width>141</width>
+      <height>41</height>
      </rect>
     </property>
     <property name="text">
@@ -55,25 +45,9 @@
      <rect>
       <x>260</x>
       <y>30</y>
-      <width>251</width>
+      <width>261</width>
       <height>22</height>
      </rect>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_1">
-    <property name="geometry">
-     <rect>
-      <x>260</x>
-      <y>60</y>
-      <width>131</width>
-      <height>20</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Left</string>
-    </property>
-    <property name="alignment">
-     <set>Qt::AlignCenter</set>
     </property>
    </widget>
    <widget class="QLabel" name="deviceBoxLabel">
@@ -86,100 +60,184 @@
      </rect>
     </property>
     <property name="text">
-     <string>Choose device</string>
+     <string>Valitse laite</string>
     </property>
    </widget>
-   <widget class="QListWidget" name="resultList_2">
+   <widget class="QLCDNumber" name="lcdNumber">
     <property name="geometry">
      <rect>
-      <x>400</x>
-      <y>110</y>
-      <width>131</width>
-      <height>491</height>
+      <x>280</x>
+      <y>240</y>
+      <width>231</width>
+      <height>101</height>
      </rect>
     </property>
    </widget>
-   <widget class="QLabel" name="label_2">
+   <widget class="QLabel" name="measurementLabel">
     <property name="geometry">
      <rect>
-      <x>400</x>
-      <y>60</y>
-      <width>121</width>
-      <height>20</height>
+      <x>290</x>
+      <y>150</y>
+      <width>201</width>
+      <height>51</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>24</pointsize>
+     </font>
     </property>
     <property name="text">
-     <string>Right</string>
+     <string>Mittaus</string>
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
     </property>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_1">
+   <widget class="QTableWidget" name="tableWidgetLeft">
     <property name="geometry">
      <rect>
-      <x>270</x>
+      <x>20</x>
       <y>80</y>
-      <width>113</width>
-      <height>20</height>
+      <width>250</width>
+      <height>600</height>
      </rect>
     </property>
+    <property name="showGrid">
+     <bool>true</bool>
+    </property>
+    <property name="gridStyle">
+     <enum>Qt::SolidLine</enum>
+    </property>
+    <property name="rowCount">
+     <number>28</number>
+    </property>
+    <property name="columnCount">
+     <number>3</number>
+    </property>
+    <attribute name="horizontalHeaderVisible">
+     <bool>true</bool>
+    </attribute>
+    <attribute name="horizontalHeaderDefaultSectionSize">
+     <number>78</number>
+    </attribute>
+    <attribute name="horizontalHeaderMinimumSectionSize">
+     <number>39</number>
+    </attribute>
+    <attribute name="verticalHeaderVisible">
+     <bool>false</bool>
+    </attribute>
+    <attribute name="verticalHeaderCascadingSectionResizes">
+     <bool>false</bool>
+    </attribute>
+    <attribute name="verticalHeaderDefaultSectionSize">
+     <number>20</number>
+    </attribute>
+    <attribute name="verticalHeaderMinimumSectionSize">
+     <number>20</number>
+    </attribute>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <column/>
+    <column/>
+    <column/>
    </widget>
-   <widget class="QLineEdit" name="lineEdit_2">
+   <widget class="QTableWidget" name="tableWidgetRight">
     <property name="geometry">
      <rect>
-      <x>410</x>
+      <x>520</x>
       <y>80</y>
-      <width>113</width>
-      <height>20</height>
+      <width>250</width>
+      <height>600</height>
      </rect>
     </property>
-   </widget>
-   <widget class="QLabel" name="monitorLabel_1">
-    <property name="geometry">
-     <rect>
-      <x>56</x>
-      <y>180</y>
-      <width>131</width>
-      <height>20</height>
-     </rect>
+    <property name="showGrid">
+     <bool>true</bool>
     </property>
-    <property name="text">
-     <string>Vasen L-Numero</string>
+    <property name="gridStyle">
+     <enum>Qt::SolidLine</enum>
     </property>
-   </widget>
-   <widget class="QLabel" name="monitorLabel_2">
-    <property name="geometry">
-     <rect>
-      <x>596</x>
-      <y>180</y>
-      <width>121</width>
-      <height>20</height>
-     </rect>
+    <property name="rowCount">
+     <number>28</number>
     </property>
-    <property name="text">
-     <string>Oikea L-Numero</string>
+    <property name="columnCount">
+     <number>3</number>
     </property>
-   </widget>
-   <widget class="QLineEdit" name="monitorLineEdit_1">
-    <property name="geometry">
-     <rect>
-      <x>52</x>
-      <y>200</y>
-      <width>131</width>
-      <height>20</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="monitorLineEdit_2">
-    <property name="geometry">
-     <rect>
-      <x>590</x>
-      <y>200</y>
-      <width>131</width>
-      <height>20</height>
-     </rect>
-    </property>
+    <attribute name="horizontalHeaderVisible">
+     <bool>true</bool>
+    </attribute>
+    <attribute name="horizontalHeaderDefaultSectionSize">
+     <number>78</number>
+    </attribute>
+    <attribute name="verticalHeaderVisible">
+     <bool>false</bool>
+    </attribute>
+    <attribute name="verticalHeaderCascadingSectionResizes">
+     <bool>false</bool>
+    </attribute>
+    <attribute name="verticalHeaderDefaultSectionSize">
+     <number>20</number>
+    </attribute>
+    <attribute name="verticalHeaderMinimumSectionSize">
+     <number>20</number>
+    </attribute>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <column/>
+    <column/>
+    <column/>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">

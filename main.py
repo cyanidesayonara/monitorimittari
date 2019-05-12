@@ -59,6 +59,13 @@ class MainWindow(QMainWindow):
         self.measurements = self.mappings["left"]["measurements"] + \
             self.mappings["right"]["measurements"]
 
+        self.ui.tableWidgetLeft.setRowCount(len(self.measurements) / 2)
+        self.ui.tableWidgetRight.setRowCount(len(self.measurements) / 2)
+        self.ui.tableWidgetLeft.setHorizontalHeaderLabels(
+            ['Name', 'Value', 'Cell'])
+        self.ui.tableWidgetRight.setHorizontalHeaderLabels(
+            ['Name', 'Value', 'Cell'])
+
     def formatExcel(self):
         try:
             # suppress excel warnings
@@ -200,7 +207,6 @@ class MainWindow(QMainWindow):
         # wrong input device
         except Exception as e:
             print(str(e))
-            pass
             # popup: No input data, try another device
         self.device.close()
 
@@ -236,15 +242,12 @@ class MainWindow(QMainWindow):
                 chr(data[9]) + \
                 chr(data[10]) + \
                 chr(data[11])
-            self.currentMeasurement = self.measurements[str(
-                self.currentIndex)]["name"] + " - " + str(round(float(self.rawValue), 3))
+            self.currentMeasurement = str(
+                round(float(self.rawValue), 3))
 
-            if self.currentIndex < len(self.measurements) / 2:
-                self.ui.lineEdit_1.setText(self.currentMeasurement)
-                self.ui.lineEdit_2.setText("")
-            else:
-                self.ui.lineEdit_1.setText("")
-                self.ui.lineEdit_2.setText(self.currentMeasurement)
+            self.ui.lcdNumber.display(self.currentMeasurement)
+            self.ui.measurementLabel.setText(
+                self.measurements[self.currentIndex]["name"])
         except Exception as e:
             print(str(e))
 
