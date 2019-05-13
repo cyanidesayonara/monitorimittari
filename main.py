@@ -43,16 +43,16 @@ class MainWindow(QMainWindow):
         # self.ui.monitorLineEdit_1.textChanged.connect()
         self.threadpool = QThreadPool()
         self.mappings = {}
-        self.settings = {}
+        self.config = {}
         self.device = None
         self.currentMeasurement = None
         self.rawValue = None
 
-    def setup(self):
-        with open("setup.json") as f:
-            self.settings = json.loads(f.read())
+    def configure(self):
+        with open("config.json") as f:
+            self.config = json.loads(f.read())
 
-        with open(self.settings["mappings"]) as f:
+        with open(self.config["mappings"]) as f:
             self.mappings = json.loads(f.read())
 
         self.measurements = self.mappings["left"]["measurements"] + \
@@ -83,12 +83,12 @@ class MainWindow(QMainWindow):
             warnings.filterwarnings("ignore")
 
             # make a copy of base excel file
-            copyfile(self.settings["excelInputFile"],
-                     self.settings["excelOutputFile"])
+            copyfile(self.config["excelInputFile"],
+                     self.config["excelOutputFile"])
 
             # load workbook and activate worksheet
             workbook = load_workbook(
-                self.settings["excelOutputFile"], keep_vba=True)
+                self.config["excelOutputFile"], keep_vba=True)
             worksheet = workbook.active
 
             # input measurements
@@ -96,10 +96,10 @@ class MainWindow(QMainWindow):
                 worksheet[measurement["cell"]] = float(measurement["value"])
 
             # save excel
-            workbook.save(self.settings["excelOutputFile"])
+            workbook.save(self.config["excelOutputFile"])
 
             # sleep(1)
-            # os.startfile(self.settings["excelOutputFile"])
+            # os.startfile(self.config["excelOutputFile"])
             # sleep(1)
             # # TODO focus on excel
             # # shell.SendKeys("%{F4}", 0)
@@ -301,7 +301,7 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.setup()
+    window.configure()
     window.showDevices()
     window.show()
     sys.exit(app.exec_())
