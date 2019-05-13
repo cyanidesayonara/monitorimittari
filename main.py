@@ -5,6 +5,8 @@ import os
 import sys
 import warnings
 import json
+from config import backupConfig
+from themes import light, dark
 from time import sleep
 from openpyxl import load_workbook
 from pywinusb import hid
@@ -40,7 +42,14 @@ class MainWindow(QMainWindow):
         self.ui.deviceBox.activated.connect(self.selectDevice)
         self.all_hids = hid.find_all_hid_devices()
         self.currentIndex = 0
-        # self.ui.monitorLineEdit_1.textChanged.connect()
+        self.ui.leftLNumberInput.textEdited.connect(
+            lambda: self.changeText(self.ui.leftLNumberInput))
+        self.ui.rightLNumberInput.textEdited.connect(
+            lambda: self.changeText(self.ui.rightLNumberInput))
+        self.ui.lightThemeButton.toggled.connect(
+            lambda: self.changeTheme("light"))
+        self.ui.darkThemeButton.toggled.connect(
+            lambda: self.changeTheme("dark"))
         self.threadpool = QThreadPool()
         self.mappings = {}
         self.config = {}
@@ -48,34 +57,66 @@ class MainWindow(QMainWindow):
         self.currentMeasurement = None
         self.rawValue = None
 
+    def changeTheme(self, theme):
+        if theme == "dark":
+            self.setStyleSheet(dark)
+            self.config["theme"] = "dark"
+        else:
+            self.setStyleSheet("")
+            self.config["theme"] = "light"
+
     def configure(self):
-        with open("config.json") as f:
+        configFile = "config.json"
+
+        # if config file doesn't exist, create it from backup
+        if not os.path.isfile(configFile):
+            with open(configFile, "w+") as f:
+                f.write(json.dumps(backupConfig))
+
+        # open and load config
+        with open(configFile) as f:
             self.config = json.loads(f.read())
 
-        with open(self.config["mappings"]) as f:
-            self.mappings = json.loads(f.read())
+        theme = self.config["theme"]
+        self.changeTheme(theme)
+        if theme == "dark":
+            self.ui.darkThemeButton.setChecked(True)
+        else:
+            self.ui.lightThemeButton.setChecked(True)
 
+        # set mappings
+        self.mappings = self.config[self.config["mappings"]]
+
+        # set measurements
         self.measurements = self.mappings["left"]["measurements"] + \
             self.mappings["right"]["measurements"]
 
-        # populate tables
-        self.ui.tableWidgetLeft.setRowCount(len(self.measurements) / 2)
-        self.ui.tableWidgetRight.setRowCount(len(self.measurements) / 2)
-        self.ui.tableWidgetLeft.setHorizontalHeaderLabels(
+        # config tables
+        self.ui.leftTableWidget.setRowCount(len(self.measurements) / 2)
+        self.ui.rightTableWidget.setRowCount(len(self.measurements) / 2)
+        self.ui.leftTableWidget.setHorizontalHeaderLabels(
             ['Nimi', 'Arvo', 'Solu'])
-        self.ui.tableWidgetRight.setHorizontalHeaderLabels(
+        self.ui.rightTableWidget.setHorizontalHeaderLabels(
             ['Nimi', 'Arvo', 'Solu'])
 
+        # populate tables
         for index, measurement in enumerate(self.mappings["left"]["measurements"]):
-            self.ui.tableWidgetLeft.setItem(
+            self.ui.leftTableWidget.setItem(
                 index, 0, QTableWidgetItem(measurement["name"]))
-            self.ui.tableWidgetLeft.setItem(
+            self.ui.leftTableWidget.setItem(
                 index, 2, QTableWidgetItem(measurement["cell"]))
+
         for index, measurement in enumerate(self.mappings["right"]["measurements"]):
-            self.ui.tableWidgetRight.setItem(
+            self.ui.rightTableWidget.setItem(
                 index, 0, QTableWidgetItem(measurement["name"]))
-            self.ui.tableWidgetRight.setItem(
+            self.ui.rightTableWidget.setItem(
                 index, 2, QTableWidgetItem(measurement["cell"]))
+
+    def changeText(self, textInput):
+        if textInput == self.ui.leftLNumberInput:
+            self.mappings["left"]["monitor"]["value"] = textInput.text()
+        if textInput == self.ui.rightLNumberInput:
+            self.mappings["right"]["monitor"]["value"] = textInput.text()
 
     def formatExcel(self):
         try:
@@ -90,6 +131,12 @@ class MainWindow(QMainWindow):
             workbook = load_workbook(
                 self.config["excelOutputFile"], keep_vba=True)
             worksheet = workbook.active
+
+            worksheet[self.mappings["left"]["monitor"]["cell"]
+                      ] = self.mappings["left"]["monitor"]["value"]
+
+            worksheet[self.mappings["right"]["monitor"]["cell"]
+                      ] = self.mappings["right"]["monitor"]["value"]
 
             # input measurements
             for measurement in self.measurements:
@@ -265,10 +312,10 @@ class MainWindow(QMainWindow):
     def addResult(self):
         if self.currentMeasurement:
             if self.currentIndex < len(self.measurements) / 2:
-                self.ui.tableWidgetLeft.setItem(
+                self.ui.leftTableWidget.setItem(
                     self.currentIndex, 1, QTableWidgetItem(self.currentMeasurement))
             else:
-                self.ui.tableWidgetRight.setItem(
+                self.ui.rightTableWidget.setItem(
                     self.currentIndex - len(self.measurements) / 2, 1, QTableWidgetItem(self.currentMeasurement))
 
             self.measurements[self.currentIndex]["value"] = self.rawValue
@@ -278,10 +325,10 @@ class MainWindow(QMainWindow):
     def removeResult(self):
         if self.currentIndex > 0:
             if self.currentIndex <= len(self.measurements) / 2:
-                item = self.ui.tableWidgetLeft.takeItem(
+                item = self.ui.leftTableWidget.takeItem(
                     self.currentIndex - 1, 1)
             else:
-                item = self.ui.tableWidgetRight.takeItem(
+                item = self.ui.rightTableWidget.takeItem(
                     self.currentIndex - 1 - len(self.measurements) / 2, 1)
             del item
 
