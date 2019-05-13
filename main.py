@@ -1,17 +1,18 @@
-from PyQt5.QtCore import Qt, QRunnable, QThreadPool, pyqtSlot
-from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem
-from ui import Ui_MainWindow
-import os
-import sys
-import warnings
-import json
-from config import backupConfig
-from themes import light, dark
-from time import sleep
-from openpyxl import load_workbook
-from pywinusb import hid
-from win32com import client
 from shutil import copyfile
+from win32com import client
+from pywinusb import hid
+from openpyxl import load_workbook
+from time import sleep
+import styles
+from config import backupConfig
+import json
+import warnings
+import sys
+import os
+from ui import Ui_MainWindow
+from PyQt5.QtCore import Qt, QRunnable, QThreadPool, pyqtSlot, QRect, QCoreApplication
+from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QStyleFactory, QPushButton
+from PyQt5.QtGui import QIcon
 shell = client.Dispatch("WScript.Shell")
 
 
@@ -37,8 +38,13 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.setWindowIcon(QIcon("./" + "icon.png"))
         self.ui.forwardButton.clicked.connect(self.addResult)
         self.ui.backwardButton.clicked.connect(self.removeResult)
+        self.ui.leftMonitorSelect.clicked.connect(
+            lambda: self.setMonitor("left"))
+        self.ui.rightMonitorSelect.clicked.connect(
+            lambda: self.setMonitor("right"))
         self.ui.deviceBox.activated.connect(self.selectDevice)
         self.all_hids = hid.find_all_hid_devices()
         self.currentIndex = 0
@@ -47,9 +53,9 @@ class MainWindow(QMainWindow):
         self.ui.rightLNumberInput.textEdited.connect(
             lambda: self.changeText(self.ui.rightLNumberInput))
         self.ui.lightThemeButton.toggled.connect(
-            lambda: self.changeTheme("light"))
+            lambda: self.setTheme("light"))
         self.ui.darkThemeButton.toggled.connect(
-            lambda: self.changeTheme("dark"))
+            lambda: self.setTheme("dark"))
         self.threadpool = QThreadPool()
         self.mappings = {}
         self.config = {}
@@ -57,13 +63,22 @@ class MainWindow(QMainWindow):
         self.currentMeasurement = None
         self.rawValue = None
 
-    def changeTheme(self, theme):
+    def setMonitor(self, monitor):
+        if monitor == "right":
+            self.ui.leftTableWidget.hide()
+            self.ui.rightTableWidget.show()
+        else:
+            self.ui.leftTableWidget.show()
+            self.ui.rightTableWidget.hide()
+
+    def setTheme(self, theme):
         if theme == "dark":
-            self.setStyleSheet(dark)
+            stylesheet = styles.base + styles.dark
             self.config["theme"] = "dark"
         else:
-            self.setStyleSheet("")
+            stylesheet = styles.base + styles.light
             self.config["theme"] = "light"
+        self.setStyleSheet(stylesheet)
 
     def configure(self):
         configFile = "config.json"
@@ -78,7 +93,9 @@ class MainWindow(QMainWindow):
             self.config = json.loads(f.read())
 
         theme = self.config["theme"]
-        self.changeTheme(theme)
+        self.setTheme(theme)
+        self.setMonitor("left")
+
         if theme == "dark":
             self.ui.darkThemeButton.setChecked(True)
         else:
@@ -94,10 +111,17 @@ class MainWindow(QMainWindow):
         # config tables
         self.ui.leftTableWidget.setRowCount(len(self.measurements) / 2)
         self.ui.rightTableWidget.setRowCount(len(self.measurements) / 2)
+        self.ui.leftTableWidget.horizontalHeader().setStretchLastSection(True)
         self.ui.leftTableWidget.setHorizontalHeaderLabels(
             ['Nimi', 'Arvo', 'Solu'])
         self.ui.rightTableWidget.setHorizontalHeaderLabels(
             ['Nimi', 'Arvo', 'Solu'])
+        # self.ui.leftTableWidget.setGeometry(
+        #     self.left, self.top, self.width, self.height)
+        # self.ui.leftTableWidget.setGeometry(
+        #     self.ui.left, self.ui.top, self.ui.width, len(self.measurements) / 2 * 21)
+        self.ui.leftTableWidget.setAlternatingRowColors(True)
+        self.ui.rightTableWidget.setAlternatingRowColors(True)
 
         # populate tables
         for index, measurement in enumerate(self.mappings["left"]["measurements"]):
@@ -109,8 +133,16 @@ class MainWindow(QMainWindow):
         for index, measurement in enumerate(self.mappings["right"]["measurements"]):
             self.ui.rightTableWidget.setItem(
                 index, 0, QTableWidgetItem(measurement["name"]))
-            self.ui.rightTableWidget.setItem(
-                index, 2, QTableWidgetItem(measurement["cell"]))
+
+            measurementEditToggle = QPushButton(self.ui.centralwidget)
+            measurementEditToggle.setObjectName(
+                "measurementEditToggle" + str(index))
+            measurementEditToggle.setGeometry(
+                QRect(210, 91 + index * 20, 92, 22))
+            measurementEditToggle.setText(
+                QCoreApplication.translate("MainWindow", "Muokkaa"))
+            measurementEditToggle.clicked.connect(
+                lambda: self.setMonitor("right"))
 
     def changeText(self, textInput):
         if textInput == self.ui.leftLNumberInput:
@@ -337,6 +369,9 @@ class MainWindow(QMainWindow):
             self.currentMeasurement = None
 
     def keyPressEvent(self, event):
+        if event.key() == Qt.Key_F5:
+            python = sys.executable
+            os.execl(python, python, * sys.argv)
         if event.key() == Qt.Key_Return:
             self.addResult()
         if event.key() == Qt.Key_Backspace:
@@ -347,6 +382,7 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    app.setStyle(QStyleFactory.create("fusion"))
     window = MainWindow()
     window.configure()
     window.showDevices()
