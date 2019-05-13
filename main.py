@@ -1,10 +1,9 @@
 from PyQt5.QtCore import Qt, QRunnable, QThreadPool, pyqtSlot
-from PyQt5.QtWidgets import QMainWindow, QApplication
+from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem
 from ui import Ui_MainWindow
 import os
 import sys
 import warnings
-import signal
 import json
 from time import sleep
 from openpyxl import load_workbook
@@ -59,12 +58,24 @@ class MainWindow(QMainWindow):
         self.measurements = self.mappings["left"]["measurements"] + \
             self.mappings["right"]["measurements"]
 
+        # populate tables
         self.ui.tableWidgetLeft.setRowCount(len(self.measurements) / 2)
         self.ui.tableWidgetRight.setRowCount(len(self.measurements) / 2)
         self.ui.tableWidgetLeft.setHorizontalHeaderLabels(
-            ['Name', 'Value', 'Cell'])
+            ['Nimi', 'Arvo', 'Solu'])
         self.ui.tableWidgetRight.setHorizontalHeaderLabels(
-            ['Name', 'Value', 'Cell'])
+            ['Nimi', 'Arvo', 'Solu'])
+
+        for index, measurement in enumerate(self.mappings["left"]["measurements"]):
+            self.ui.tableWidgetLeft.setItem(
+                index, 0, QTableWidgetItem(measurement["name"]))
+            self.ui.tableWidgetLeft.setItem(
+                index, 2, QTableWidgetItem(measurement["cell"]))
+        for index, measurement in enumerate(self.mappings["right"]["measurements"]):
+            self.ui.tableWidgetRight.setItem(
+                index, 0, QTableWidgetItem(measurement["name"]))
+            self.ui.tableWidgetRight.setItem(
+                index, 2, QTableWidgetItem(measurement["cell"]))
 
     def formatExcel(self):
         try:
@@ -72,12 +83,12 @@ class MainWindow(QMainWindow):
             warnings.filterwarnings("ignore")
 
             # make a copy of base excel file
-            copyfile(self.settings.excelInputFile,
-                     self.settings.excelOutputFile)
+            copyfile(self.settings["excelInputFile"],
+                     self.settings["excelOutputFile"])
 
             # load workbook and activate worksheet
             workbook = load_workbook(
-                self.settings.excelOutputFile, keep_vba=True)
+                self.settings["excelOutputFile"], keep_vba=True)
             worksheet = workbook.active
 
             # input measurements
@@ -85,10 +96,10 @@ class MainWindow(QMainWindow):
                 worksheet[measurement["cell"]] = float(measurement["value"])
 
             # save excel
-            workbook.save(self.excelOutputFile)
+            workbook.save(self.settings["excelOutputFile"])
 
             # sleep(1)
-            # os.startfile(self.excelOutputFile)
+            # os.startfile(self.settings["excelOutputFile"])
             # sleep(1)
             # # TODO focus on excel
             # # shell.SendKeys("%{F4}", 0)
@@ -160,7 +171,7 @@ class MainWindow(QMainWindow):
             # sleep(0.1)
             # shell.AppActivate('Get Value 0.5')
             # sleep(0.1)
-            # print("Done!")
+            print("Done!")
         # if file is used by another process
         except PermissionError as e:
             print(e)
@@ -242,7 +253,7 @@ class MainWindow(QMainWindow):
                 chr(data[9]) + \
                 chr(data[10]) + \
                 chr(data[11])
-            self.currentMeasurement = str(
+            self.currentMeasurement = "{:.3f}".format(
                 round(float(self.rawValue), 3))
 
             self.ui.lcdNumber.display(self.currentMeasurement)
@@ -254,23 +265,27 @@ class MainWindow(QMainWindow):
     def addResult(self):
         if self.currentMeasurement:
             if self.currentIndex < len(self.measurements) / 2:
-                self.ui.resultList_1.addItem(self.currentMeasurement)
+                self.ui.tableWidgetLeft.setItem(
+                    self.currentIndex, 1, QTableWidgetItem(self.currentMeasurement))
             else:
-                self.ui.resultList_2.addItem(self.currentMeasurement)
+                self.ui.tableWidgetRight.setItem(
+                    self.currentIndex - len(self.measurements) / 2, 1, QTableWidgetItem(self.currentMeasurement))
 
+            self.measurements[self.currentIndex]["value"] = self.rawValue
             self.currentIndex = self.currentIndex + 1
             self.currentMeasurement = None
 
     def removeResult(self):
         if self.currentIndex > 0:
             if self.currentIndex <= len(self.measurements) / 2:
-                item = self.ui.resultList_1.takeItem(
-                    len(self.ui.resultList_1) - 1)
+                item = self.ui.tableWidgetLeft.takeItem(
+                    self.currentIndex - 1, 1)
             else:
-                item = self.ui.resultList_2.takeItem(
-                    len(self.ui.resultList_2) - 1)
+                item = self.ui.tableWidgetRight.takeItem(
+                    self.currentIndex - 1 - len(self.measurements) / 2, 1)
             del item
 
+            del self.measurements[self.currentIndex - 1]["value"]
             self.currentIndex = self.currentIndex - 1
             self.currentMeasurement = None
 
@@ -286,9 +301,9 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.show()
     window.setup()
     window.showDevices()
+    window.show()
     sys.exit(app.exec_())
 
 
