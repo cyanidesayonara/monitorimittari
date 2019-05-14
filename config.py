@@ -7,7 +7,7 @@ backupConfig = {
         "left": {
             "monitor": {
                 "name": "Vasen L-numero",
-                "cell": "B13"
+                "cell": "B14"
             },
             "measurements": [{
                 "name": "Vasen L1",
@@ -158,7 +158,7 @@ backupConfig = {
         "right": {
             "monitor": {
                 "name": "Oikea L-numero",
-                "cell": "F13"
+                "cell": "F14"
             },
             "measurements": [{
                 "name": "Oikea L1",

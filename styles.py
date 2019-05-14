@@ -8,8 +8,24 @@ dark = """
         background-color: #444;
         color: #fff;
     }
-    .QLabel, QRadioButton {
+    #MainWindow .QLabel,
+    #MainWindow .QRadioButton,
+    #MainWindow #verticalLayoutWidget,
+    #MainWindow .QComboBox QAbstractItemView {
+        background-color: #222;
         color: #fff;
+    }
+    #MainWindow .QTableWidget {
+        alternate-background-color: #333;
+    }
+    #MainWindow .QHeaderView::section {
+        background-color: #333;
+        color: #fff
+    }
+    #MainWindow #measurementLabel,
+    #MainWindow #leftMonitorLabel,
+    #MainWindow #rightMonitorLabel  {
+        background-color: #444;
     }
 
 """

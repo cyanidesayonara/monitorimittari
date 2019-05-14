@@ -67,9 +67,13 @@ class MainWindow(QMainWindow):
         if monitor == "right":
             self.ui.leftTableWidget.hide()
             self.ui.rightTableWidget.show()
+            self.ui.leftMonitorSelect.setChecked(False)
+            self.ui.rightMonitorSelect.setChecked(True)
         else:
             self.ui.leftTableWidget.show()
             self.ui.rightTableWidget.hide()
+            self.ui.leftMonitorSelect.setChecked(True)
+            self.ui.rightMonitorSelect.setChecked(False)
 
     def setTheme(self, theme):
         if theme == "dark":
@@ -133,16 +137,8 @@ class MainWindow(QMainWindow):
         for index, measurement in enumerate(self.mappings["right"]["measurements"]):
             self.ui.rightTableWidget.setItem(
                 index, 0, QTableWidgetItem(measurement["name"]))
-
-            measurementEditToggle = QPushButton(self.ui.centralwidget)
-            measurementEditToggle.setObjectName(
-                "measurementEditToggle" + str(index))
-            measurementEditToggle.setGeometry(
-                QRect(210, 91 + index * 20, 92, 22))
-            measurementEditToggle.setText(
-                QCoreApplication.translate("MainWindow", "Muokkaa"))
-            measurementEditToggle.clicked.connect(
-                lambda: self.setMonitor("right"))
+            self.ui.rightTableWidget.setItem(
+                index, 2, QTableWidgetItem(measurement["cell"]))
 
     def changeText(self, textInput):
         if textInput == self.ui.leftLNumberInput:
@@ -346,27 +342,35 @@ class MainWindow(QMainWindow):
             if self.currentIndex < len(self.measurements) / 2:
                 self.ui.leftTableWidget.setItem(
                     self.currentIndex, 1, QTableWidgetItem(self.currentMeasurement))
+                self.setMonitor("left")
             else:
                 self.ui.rightTableWidget.setItem(
                     self.currentIndex - len(self.measurements) / 2, 1, QTableWidgetItem(self.currentMeasurement))
+                self.setMonitor("right")
 
             self.measurements[self.currentIndex]["value"] = self.rawValue
             self.currentIndex = self.currentIndex + 1
             self.currentMeasurement = None
+            self.ui.progressBar.setValue(
+                self.currentIndex / len(self.measurements) * 100)
 
     def removeResult(self):
         if self.currentIndex > 0:
             if self.currentIndex <= len(self.measurements) / 2:
                 item = self.ui.leftTableWidget.takeItem(
                     self.currentIndex - 1, 1)
+                self.setMonitor("left")
             else:
                 item = self.ui.rightTableWidget.takeItem(
                     self.currentIndex - 1 - len(self.measurements) / 2, 1)
+                self.setMonitor("right")
             del item
 
             del self.measurements[self.currentIndex - 1]["value"]
             self.currentIndex = self.currentIndex - 1
             self.currentMeasurement = None
+            self.ui.progressBar.setValue(
+                self.currentIndex / len(self.measurements) * 100)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_F5:
@@ -382,7 +386,7 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyle(QStyleFactory.create("fusion"))
+    app.setStyle("fusion")
     window = MainWindow()
     window.configure()
     window.showDevices()
