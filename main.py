@@ -10,8 +10,8 @@ import warnings
 import sys
 import os
 from ui import Ui_MainWindow
-from PyQt5.QtCore import Qt, QRunnable, QThreadPool, pyqtSlot, QRect, QCoreApplication
-from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QStyleFactory, QPushButton
+from PyQt5.QtCore import Qt, QRunnable, QThreadPool, pyqtSlot
+from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMessageBox
 from PyQt5.QtGui import QIcon
 shell = client.Dispatch("WScript.Shell")
 
@@ -39,23 +39,37 @@ class MainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setWindowIcon(QIcon("./" + "icon.png"))
+        self.ui.messageBox = QMessageBox(self.ui.centralwidget)
+        self.ui.messageBox.setWindowTitle(" ")
+        self.all_hids = hid.find_all_hid_devices()
+        self.currentIndex = 0
+
+        # selects
+        self.ui.deviceBox.activated.connect(self.selectDevice)
+
+        # buttons
         self.ui.forwardButton.clicked.connect(self.addResult)
         self.ui.backwardButton.clicked.connect(self.removeResult)
         self.ui.leftMonitorSelect.clicked.connect(
             lambda: self.setMonitor("left"))
         self.ui.rightMonitorSelect.clicked.connect(
             lambda: self.setMonitor("right"))
-        self.ui.deviceBox.activated.connect(self.selectDevice)
-        self.all_hids = hid.find_all_hid_devices()
-        self.currentIndex = 0
-        self.ui.leftLNumberInput.textEdited.connect(
-            lambda: self.changeText(self.ui.leftLNumberInput))
-        self.ui.rightLNumberInput.textEdited.connect(
-            lambda: self.changeText(self.ui.rightLNumberInput))
         self.ui.lightThemeButton.toggled.connect(
             lambda: self.setTheme("light"))
         self.ui.darkThemeButton.toggled.connect(
             lambda: self.setTheme("dark"))
+        self.ui.saveButton.clicked.connect(self.saveData)
+
+        # inputs
+        self.ui.leftLNumberInput.textEdited.connect(
+            lambda: self.changeText(self.ui.leftLNumberInput))
+        self.ui.rightLNumberInput.textEdited.connect(
+            lambda: self.changeText(self.ui.rightLNumberInput))
+        self.ui.leftTesterInput.textEdited.connect(
+            lambda: self.changeText(self.ui.leftTesterInput))
+        self.ui.rightTesterInput.textEdited.connect(
+            lambda: self.changeText(self.ui.rightTesterInput))
+
         self.threadpool = QThreadPool()
         self.mappings = {}
         self.config = {}
@@ -63,13 +77,64 @@ class MainWindow(QMainWindow):
         self.currentMeasurement = None
         self.rawValue = None
 
+    def saveData(self):
+        try:
+            # suppress excel warnings
+            warnings.filterwarnings("ignore")
+
+            # make a copy of base excel file
+            copyfile(self.config["excelInputFile"],
+                     self.config["excelOutputFile"])
+
+            # load workbook and activate worksheet
+            workbook = load_workbook(
+                self.config["excelOutputFile"], keep_vba=True)
+            worksheet = workbook.active
+
+            if self.mappings["left"]["monitor"]["value"]:
+                worksheet[self.mappings["left"]["monitor"]["cell"]
+                          ] = self.mappings["left"]["monitor"]["value"]
+            if self.mappings["right"]["monitor"]["value"]:
+                worksheet[self.mappings["right"]["monitor"]["cell"]
+                          ] = self.mappings["right"]["monitor"]["value"]
+            if self.mappings["left"]["tester"]["value"]:
+                worksheet[self.mappings["left"]["tester"]["cell"]
+                          ] = self.mappings["left"]["tester"]["value"]
+            if self.mappings["right"]["tester"]["value"]:
+                worksheet[self.mappings["right"]["tester"]["cell"]
+                          ] = self.mappings["right"]["tester"]["value"]
+
+            # input measurements
+            for measurement in self.measurements:
+                if measurement["value"]:
+                    worksheet[measurement["cell"]] = float(
+                        measurement["value"])
+
+            # save excel
+            workbook.save(self.config["excelOutputFile"])
+            self.ui.messageBox.setText(
+                "Tallennettu tiedostoon {0}.".format(self.config["excelOutputFile"]))
+            self.ui.messageBox.show()
+        # if file is used by another process
+        except PermissionError as e:
+            self.ui.messageBox.setText(
+                "Excel-tiedosto on auki toisessa ikkunassa. Ole hyvä ja sulje tiedosto.")
+            self.ui.messageBox.show()
+        # if base excel file doesn't exist
+        except FileNotFoundError as e:
+            self.ui.messageBox.setText(
+                "Excel-tiedostoa ei löydy. Ole hyvä ja valitse tiedosto uudelleen.")
+            self.ui.messageBox.show()
+
     def setMonitor(self, monitor):
         if monitor == "right":
+            self.ui.leftTableWidget.clearSelection()
             self.ui.leftTableWidget.hide()
             self.ui.rightTableWidget.show()
             self.ui.leftMonitorSelect.setChecked(False)
             self.ui.rightMonitorSelect.setChecked(True)
         else:
+            self.ui.rightTableWidget.clearSelection()
             self.ui.leftTableWidget.show()
             self.ui.rightTableWidget.hide()
             self.ui.leftMonitorSelect.setChecked(True)
@@ -83,6 +148,16 @@ class MainWindow(QMainWindow):
             stylesheet = styles.base + styles.light
             self.config["theme"] = "light"
         self.setStyleSheet(stylesheet)
+
+    def setCurrentIndex(self, row):
+        if self.ui.leftMonitorSelect.isChecked() == True:
+            self.currentIndex = row.row()
+            self.ui.rightTableWidget.clearSelection()
+            self.ui.leftTableWidget.selectRow(row.row())
+        else:
+            self.currentIndex = row.row() + int(len(self.measurements) / 2)
+            self.ui.leftTableWidget.clearSelection()
+            self.ui.rightTableWidget.selectRow(row.row())
 
     def configure(self):
         configFile = "config.json"
@@ -113,9 +188,10 @@ class MainWindow(QMainWindow):
             self.mappings["right"]["measurements"]
 
         # config tables
-        self.ui.leftTableWidget.setRowCount(len(self.measurements) / 2)
-        self.ui.rightTableWidget.setRowCount(len(self.measurements) / 2)
-        self.ui.leftTableWidget.horizontalHeader().setStretchLastSection(True)
+        self.ui.leftTableWidget.setRowCount(int(len(self.measurements) / 2))
+        self.ui.rightTableWidget.setRowCount(int(len(self.measurements) / 2))
+        self.ui.rightTableWidget.clicked.connect(self.setCurrentIndex)
+        self.ui.leftTableWidget.clicked.connect(self.setCurrentIndex)
         self.ui.leftTableWidget.setHorizontalHeaderLabels(
             ['Nimi', 'Arvo', 'Solu'])
         self.ui.rightTableWidget.setHorizontalHeaderLabels(
@@ -123,7 +199,7 @@ class MainWindow(QMainWindow):
         # self.ui.leftTableWidget.setGeometry(
         #     self.left, self.top, self.width, self.height)
         # self.ui.leftTableWidget.setGeometry(
-        #     self.ui.left, self.ui.top, self.ui.width, len(self.measurements) / 2 * 21)
+        #     self.ui.left, self.ui.top, self.ui.width, int(len(self.measurements) / 2) * 21)
         self.ui.leftTableWidget.setAlternatingRowColors(True)
         self.ui.rightTableWidget.setAlternatingRowColors(True)
 
@@ -145,120 +221,99 @@ class MainWindow(QMainWindow):
             self.mappings["left"]["monitor"]["value"] = textInput.text()
         if textInput == self.ui.rightLNumberInput:
             self.mappings["right"]["monitor"]["value"] = textInput.text()
+        if textInput == self.ui.leftTesterInput:
+            self.mappings["left"]["tester"]["value"] = textInput.text()
+        if textInput == self.ui.rightTesterInput:
+            self.mappings["right"]["tester"]["value"] = textInput.text()
 
     def formatExcel(self):
-        try:
-            # suppress excel warnings
-            warnings.filterwarnings("ignore")
-
-            # make a copy of base excel file
-            copyfile(self.config["excelInputFile"],
-                     self.config["excelOutputFile"])
-
-            # load workbook and activate worksheet
-            workbook = load_workbook(
-                self.config["excelOutputFile"], keep_vba=True)
-            worksheet = workbook.active
-
-            worksheet[self.mappings["left"]["monitor"]["cell"]
-                      ] = self.mappings["left"]["monitor"]["value"]
-
-            worksheet[self.mappings["right"]["monitor"]["cell"]
-                      ] = self.mappings["right"]["monitor"]["value"]
-
-            # input measurements
-            for measurement in self.measurements:
-                worksheet[measurement["cell"]] = float(measurement["value"])
-
-            # save excel
-            workbook.save(self.config["excelOutputFile"])
-
-            # sleep(1)
-            # os.startfile(self.config["excelOutputFile"])
-            # sleep(1)
-            # # TODO focus on excel
-            # # shell.SendKeys("%{F4}", 0)
-            # shell.SendKeys("{ENTER}", 0)
-            # sleep(1)
-            # shell.SendKeys("%", 0)
-            # sleep(0.1)
-            # shell.SendKeys("o", 0)
-            # sleep(0.1)
-            # shell.SendKeys("u", 0)
-            # sleep(0.1)
-            # shell.SendKeys("m", 0)
-            # sleep(0.1)
-            # shell.SendKeys("p", 0)
-            # sleep(0.1)
-            # shell.SendKeys("p", 0)
-            # sleep(0.1)
-            # shell.SendKeys("{ENTER}", 0)
-            # sleep(0.1)
-            # shell.SendKeys("^+f", 0)
-            # sleep(0.1)
-            # shell.SendKeys("{F2}", 0)
-            # sleep(0.1)
-            # shell.SendKeys("+{HOME}", 0)
-            # sleep(0.1)
-            # shell.SendKeys("^c", 0)
-            # sleep(0.1)
-            # shell.SendKeys("{ESC}", 0)
-            # sleep(0.1)
-            # shell.SendKeys("%", 0)
-            # sleep(0.1)
-            # shell.SendKeys("o", 0)
-            # sleep(0.1)
-            # shell.SendKeys("u", 0)
-            # sleep(0.1)
-            # shell.SendKeys("m", 0)
-            # sleep(0.1)
-            # shell.SendKeys("u", 0)
-            # sleep(0.1)
-            # shell.SendKeys("{ENTER}", 0)
-            # sleep(0.1)
-            # shell.SendKeys("{F12}", 0)
-            # sleep(2)
-            # shell.SendKeys("^v", 0)
-            # sleep(0.1)
-            # shell.SendKeys("{ENTER}", 0)
-            # sleep(0.1)
-            # shell.SendKeys("^g", 0)
-            # sleep(0.1)
-            # shell.SendKeys("A", 0)
-            # # sleep(0.1)
-            # shell.SendKeys("9", 0)
-            # # sleep(0.1)
-            # shell.SendKeys("9", 0)
-            # # sleep(0.1)
-            # shell.SendKeys("{ENTER}", 0)
-            # sleep(0.1)
-            # shell.SendKeys("^g", 0)
-            # sleep(0.1)
-            # shell.SendKeys("h", 0)
-            # # sleep(0.1)
-            # shell.SendKeys("6", 0)
-            # # sleep(0.1)
-            # shell.SendKeys("5", 0)
-            # # sleep(0.1)
-            # shell.SendKeys("{ENTER}", 0)
-            # sleep(0.1)
-            # shell.SendKeys("{F2}", 0)
-            # sleep(0.1)
-            # shell.AppActivate('Get Value 0.5')
-            # sleep(0.1)
-            print("Done!")
-        # if file is used by another process
-        except PermissionError as e:
-            print(e)
-            print(
-                "Excel-tiedosto on auki toisessa ikkunassa. Ole hyvä ja sulje tiedosto.")
-            self.close()
-        # if base excel file doesn't exist
-        except FileNotFoundError as e:
-            print(e)
-            print(
-                "Excel-tiedostoa ei löydy. Ole hyvä ja valitse tiedosto uudelleen.")
-            self.close()
+        pass
+        # try:
+        #     # suppress excel warnings
+        #     warnings.filterwarnings("ignore")
+        #     sleep(1)
+        #     os.startfile(self.config["excelOutputFile"])
+        #     sleep(1)
+        #     # TODO focus on excel
+        #     # shell.SendKeys("%{F4}", 0)
+        #     shell.SendKeys("{ENTER}", 0)
+        #     sleep(1)
+        #     shell.SendKeys("%", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("o", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("u", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("m", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("p", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("p", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("{ENTER}", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("^+f", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("{F2}", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("+{HOME}", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("^c", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("{ESC}", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("%", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("o", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("u", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("m", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("u", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("{ENTER}", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("{F12}", 0)
+        #     sleep(2)
+        #     shell.SendKeys("^v", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("{ENTER}", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("^g", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("A", 0)
+        #     # sleep(0.1)
+        #     shell.SendKeys("9", 0)
+        #     # sleep(0.1)
+        #     shell.SendKeys("9", 0)
+        #     # sleep(0.1)
+        #     shell.SendKeys("{ENTER}", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("^g", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("h", 0)
+        #     # sleep(0.1)
+        #     shell.SendKeys("6", 0)
+        #     # sleep(0.1)
+        #     shell.SendKeys("5", 0)
+        #     # sleep(0.1)
+        #     shell.SendKeys("{ENTER}", 0)
+        #     sleep(0.1)
+        #     shell.SendKeys("{F2}", 0)
+        #     sleep(0.1)
+        #     shell.AppActivate('Get Value 0.5')
+        #     sleep(0.1)
+        # # if file is used by another process
+        # except PermissionError as e:
+        #     print(
+        #         "Excel-tiedosto on auki toisessa ikkunassa. Ole hyvä ja sulje tiedosto.")
+        #     self.close()
+        # # if base excel file doesn't exist
+        # except FileNotFoundError as e:
+        #     print(
+        #         "Excel-tiedostoa ei löydy. Ole hyvä ja valitse tiedosto uudelleen.")
+        #     self.close()
 
     def showDevices(self):
         """
@@ -282,8 +337,6 @@ class MainWindow(QMainWindow):
             # set custom raw data handler
             self.device.set_raw_data_handler(self.sample_handler)
 
-            # pop-up: waiting for data
-
             while self.device.is_plugged():
                 buffer = [0x00, 0x46, 0x30, 0x0d, 0x0a, 0x00, 0x00, 0x00, 0x00]
                 out_report.set_raw_data(buffer)
@@ -292,6 +345,9 @@ class MainWindow(QMainWindow):
                 sleep(0.5)
         # wrong input device
         except Exception as e:
+            self.ui.measurementLabel.setText("Ei signaalia")
+            self.ui.leftMonitorLabel.setText("VASEN MONITORI")
+            self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
             print(str(e))
             # popup: No input data, try another device
         self.device.close()
@@ -314,8 +370,8 @@ class MainWindow(QMainWindow):
 
         # if all measurements taken, format excel and exit program
         if self.currentIndex == len(self.measurements):
+            self.saveData()
             self.formatExcel()
-            self.close()
 
         try:
             # format value to string #.########
@@ -332,43 +388,76 @@ class MainWindow(QMainWindow):
                 round(float(self.rawValue), 3))
 
             self.ui.lcdNumber.display(self.currentMeasurement)
+
             self.ui.measurementLabel.setText(
                 self.measurements[self.currentIndex]["name"])
+
+            if self.currentIndex < int(len(self.measurements) / 2):
+                self.ui.leftMonitorLabel.setText(
+                    self.measurements[self.currentIndex]["name"])
+                self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
+            else:
+                self.ui.leftMonitorLabel.setText("VASEN MONITORI")
+                self.ui.rightMonitorLabel.setText(
+                    self.measurements[self.currentIndex]["name"])
         except Exception as e:
             print(str(e))
 
     def addResult(self):
         if self.currentMeasurement:
-            if self.currentIndex < len(self.measurements) / 2:
+            if self.currentIndex < int(len(self.measurements) / 2):
                 self.ui.leftTableWidget.setItem(
                     self.currentIndex, 1, QTableWidgetItem(self.currentMeasurement))
                 self.setMonitor("left")
             else:
                 self.ui.rightTableWidget.setItem(
-                    self.currentIndex - len(self.measurements) / 2, 1, QTableWidgetItem(self.currentMeasurement))
+                    self.currentIndex - int(len(self.measurements) / 2), 1, QTableWidgetItem(self.currentMeasurement))
                 self.setMonitor("right")
 
             self.measurements[self.currentIndex]["value"] = self.rawValue
             self.currentIndex = self.currentIndex + 1
             self.currentMeasurement = None
+
+            if self.currentIndex <= int(len(self.measurements) / 2):
+                self.ui.rightTableWidget.clearSelection()
+                self.ui.leftTableWidget.selectRow(self.currentIndex)
+            else:
+                self.ui.leftTableWidget.clearSelection()
+                self.ui.rightTableWidget.selectRow(
+                    self.currentIndex - int(len(self.measurements) / 2))
+
             self.ui.progressBar.setValue(
                 self.currentIndex / len(self.measurements) * 100)
 
     def removeResult(self):
         if self.currentIndex > 0:
-            if self.currentIndex <= len(self.measurements) / 2:
+            if self.currentIndex <= int(len(self.measurements) / 2):
                 item = self.ui.leftTableWidget.takeItem(
                     self.currentIndex - 1, 1)
                 self.setMonitor("left")
             else:
                 item = self.ui.rightTableWidget.takeItem(
-                    self.currentIndex - 1 - len(self.measurements) / 2, 1)
+                    self.currentIndex - 1 - int(len(self.measurements) / 2), 1)
                 self.setMonitor("right")
             del item
 
-            del self.measurements[self.currentIndex - 1]["value"]
+            try:
+                del self.measurements[self.currentIndex - 1]["value"]
+            except KeyError:
+                pass
+
             self.currentIndex = self.currentIndex - 1
             self.currentMeasurement = None
+
+            self.ui.leftTableWidget.clearSelection()
+            if self.currentIndex <= int(len(self.measurements) / 2):
+                self.ui.rightTableWidget.clearSelection()
+                self.ui.leftTableWidget.selectRow(self.currentIndex)
+            else:
+                self.ui.rightTableWidget.selectRow(
+
+                    self.currentIndex - int(len(self.measurements) / 2))
+
             self.ui.progressBar.setValue(
                 self.currentIndex / len(self.measurements) * 100)
 

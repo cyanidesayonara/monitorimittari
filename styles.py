@@ -9,7 +9,7 @@ dark = """
         color: #fff;
     }
     #MainWindow .QLabel,
-    #MainWindow .QRadioButton,
+
     #MainWindow #verticalLayoutWidget,
     #MainWindow .QComboBox QAbstractItemView {
         background-color: #222;
@@ -27,7 +27,14 @@ dark = """
     #MainWindow #rightMonitorLabel  {
         background-color: #444;
     }
-
+    #MainWindow .QRadioButton {
+        color: #fff;
+    }
+    #MainWindow .QRadioButton::indicator:checked {
+        border: 3px solid white;
+        border-radius: 7px;
+        background-color: #000;
+    }
 """
 
 base = """
