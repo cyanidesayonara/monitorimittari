@@ -12,7 +12,7 @@ import os
 from ui import Ui_MainWindow
 from PyQt5.QtCore import Qt, QRunnable, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMessageBox, QFileDialog
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 shell = client.Dispatch("WScript.Shell")
 
 
@@ -255,10 +255,7 @@ class MainWindow(QMainWindow):
             ['Nimi', 'Arvo', 'Solu'])
         self.ui.rightTableWidget.setHorizontalHeaderLabels(
             ['Nimi', 'Arvo', 'Solu'])
-        # self.ui.leftTableWidget.setGeometry(
-        #     self.left, self.top, self.width, self.height)
-        # self.ui.leftTableWidget.setGeometry(
-        #     self.ui.left, self.ui.top, self.ui.width, int(len(self.measurements) / 2) * 21)
+
         self.ui.leftTableWidget.setAlternatingRowColors(True)
         self.ui.rightTableWidget.setAlternatingRowColors(True)
 
@@ -266,8 +263,9 @@ class MainWindow(QMainWindow):
         for index, measurement in enumerate(self.mappings["left"]["measurements"]):
             self.ui.leftTableWidget.setItem(
                 index, 0, QTableWidgetItem(measurement["name"]))
+            item = QTableWidgetItem(measurement["cell"])
             self.ui.leftTableWidget.setItem(
-                index, 2, QTableWidgetItem(measurement["cell"]))
+                index, 2, item)
 
         for index, measurement in enumerate(self.mappings["right"]["measurements"]):
             self.ui.rightTableWidget.setItem(
@@ -275,10 +273,33 @@ class MainWindow(QMainWindow):
             self.ui.rightTableWidget.setItem(
                 index, 2, QTableWidgetItem(measurement["cell"]))
 
+        self.ui.leftTableWidget.itemChanged.connect(
+            self.saveTableItem)
+        self.ui.rightTableWidget.itemChanged.connect(
+            self.saveTableItem)
+
         self.ui.inputFileLabel.setText(
             self.config["excelInputFile"].split("/")[-1])
         self.ui.outputFileLabel.setText(
             self.config["excelOutputFile"].split("/")[-1])
+
+    def saveTableItem(self, item):
+        if not item.column() == 1:
+            if "left" in item.tableWidget().objectName():
+                if item.column() == 0:
+                    self.mappings["left"]["measurements"][item.column()
+                                                          ]["name"] = item.text()
+                elif item.column() == 2:
+                    self.mappings["left"]["measurements"][item.column()
+                                                          ]["cell"] = item.text()
+            else:
+                if item.column() == 0:
+                    self.mappings["right"]["measurements"][item.column()
+                                                           ]["name"] = item.text()
+                elif item.column() == 2:
+                    self.mappings["right"]["measurements"][item.column()
+                                                           ]["cell"] = item.text()
+            self.saveConfig()
 
     def changeText(self, textInput):
         if textInput == self.ui.leftLNumberInput:
