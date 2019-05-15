@@ -11,7 +11,7 @@ import sys
 import os
 from ui import Ui_MainWindow
 from PyQt5.QtCore import Qt, QRunnable, QThreadPool, pyqtSlot
-from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMessageBox
+from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMessageBox, QFileDialog
 from PyQt5.QtGui import QIcon
 shell = client.Dispatch("WScript.Shell")
 
@@ -59,6 +59,10 @@ class MainWindow(QMainWindow):
         self.ui.darkThemeButton.toggled.connect(
             lambda: self.setTheme("dark"))
         self.ui.saveButton.clicked.connect(self.saveData)
+        self.ui.inputFileButton.clicked.connect(self.chooseInputFile)
+        self.ui.outputFileButton.clicked.connect(self.chooseOutputFile)
+        self.ui.resetButton.clicked.connect(self.resetValues)
+        self.ui.restoreButton.clicked.connect(self.restoreConfig)
 
         # inputs
         self.ui.leftLNumberInput.textEdited.connect(
@@ -77,7 +81,66 @@ class MainWindow(QMainWindow):
         self.currentMeasurement = None
         self.rawValue = None
 
+    def resetValues(self):
+        for index, measurement in enumerate(self.measurements):
+            if index <= int(len(self.measurements) / 2):
+                item = self.ui.leftTableWidget.takeItem(
+                    index, 1)
+            else:
+                item = self.ui.rightTableWidget.takeItem(
+                    index - int(len(self.measurements) / 2), 1)
+            del item
+
+            try:
+                measurement["value"] = ""
+            except KeyError:
+                pass
+
+        self.currentIndex = 0
+
+        self.ui.progressBar.setValue(
+            self.currentIndex / len(self.measurements) * 100)
+
+        self.setMonitor("left")
+
+    def restoreConfig(self):
+        configFile = "config.json"
+        with open(configFile, "w+") as f:
+            f.write(json.dumps(backupConfig))
+        self.configure()
+
+    def chooseInputFile(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(
+            self, "", "C:\\Mittaus", "xlsm(*.xlsm)", options=options)
+        if fileName:
+            self.ui.inputFileLabel.setText(fileName.split("/")[-1])
+        self.config["excelInputFile"] = fileName
+        self.saveConfig()
+
+    def chooseOutputFile(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getSaveFileName(
+            self, "", "C:\\Mittaus", "xlsm(*.xlsm)", options=options)
+        if fileName:
+            if "." not in fileName:
+                fileName = fileName + ".xlsm"
+            elif not fileName.split(".")[-1] == "xlsm":
+                fileName = ".".join(fileName.split(".")[:-1] + "xlsm")
+            self.ui.outputFileLabel.setText(fileName.split("/")[-1])
+            self.config["excelOutputFile"] = fileName
+            self.saveConfig()
+
+    def saveConfig(self):
+        configFile = "config.json"
+
+        with open(configFile, "w") as f:
+            f.write(json.dumps(self.config))
+
     def saveData(self):
+        flag = False
         try:
             # suppress excel warnings
             warnings.filterwarnings("ignore")
@@ -128,13 +191,11 @@ class MainWindow(QMainWindow):
 
     def setMonitor(self, monitor):
         if monitor == "right":
-            self.ui.leftTableWidget.clearSelection()
             self.ui.leftTableWidget.hide()
             self.ui.rightTableWidget.show()
             self.ui.leftMonitorSelect.setChecked(False)
             self.ui.rightMonitorSelect.setChecked(True)
         else:
-            self.ui.rightTableWidget.clearSelection()
             self.ui.leftTableWidget.show()
             self.ui.rightTableWidget.hide()
             self.ui.leftMonitorSelect.setChecked(True)
@@ -148,16 +209,14 @@ class MainWindow(QMainWindow):
             stylesheet = styles.base + styles.light
             self.config["theme"] = "light"
         self.setStyleSheet(stylesheet)
+        self.config["theme"] = theme
+        self.saveConfig()
 
     def setCurrentIndex(self, row):
         if self.ui.leftMonitorSelect.isChecked() == True:
             self.currentIndex = row.row()
-            self.ui.rightTableWidget.clearSelection()
-            self.ui.leftTableWidget.selectRow(row.row())
         else:
             self.currentIndex = row.row() + int(len(self.measurements) / 2)
-            self.ui.leftTableWidget.clearSelection()
-            self.ui.rightTableWidget.selectRow(row.row())
 
     def configure(self):
         configFile = "config.json"
@@ -215,6 +274,11 @@ class MainWindow(QMainWindow):
                 index, 0, QTableWidgetItem(measurement["name"]))
             self.ui.rightTableWidget.setItem(
                 index, 2, QTableWidgetItem(measurement["cell"]))
+
+        self.ui.inputFileLabel.setText(
+            self.config["excelInputFile"].split("/")[-1])
+        self.ui.outputFileLabel.setText(
+            self.config["excelOutputFile"].split("/")[-1])
 
     def changeText(self, textInput):
         if textInput == self.ui.leftLNumberInput:
@@ -416,15 +480,6 @@ class MainWindow(QMainWindow):
 
             self.measurements[self.currentIndex]["value"] = self.rawValue
             self.currentIndex = self.currentIndex + 1
-            self.currentMeasurement = None
-
-            if self.currentIndex <= int(len(self.measurements) / 2):
-                self.ui.rightTableWidget.clearSelection()
-                self.ui.leftTableWidget.selectRow(self.currentIndex)
-            else:
-                self.ui.leftTableWidget.clearSelection()
-                self.ui.rightTableWidget.selectRow(
-                    self.currentIndex - int(len(self.measurements) / 2))
 
             self.ui.progressBar.setValue(
                 self.currentIndex / len(self.measurements) * 100)
@@ -442,21 +497,11 @@ class MainWindow(QMainWindow):
             del item
 
             try:
-                del self.measurements[self.currentIndex - 1]["value"]
+                self.measurements[self.currentIndex - 1]["value"] = ""
             except KeyError:
                 pass
 
             self.currentIndex = self.currentIndex - 1
-            self.currentMeasurement = None
-
-            self.ui.leftTableWidget.clearSelection()
-            if self.currentIndex <= int(len(self.measurements) / 2):
-                self.ui.rightTableWidget.clearSelection()
-                self.ui.leftTableWidget.selectRow(self.currentIndex)
-            else:
-                self.ui.rightTableWidget.selectRow(
-
-                    self.currentIndex - int(len(self.measurements) / 2))
 
             self.ui.progressBar.setValue(
                 self.currentIndex / len(self.measurements) * 100)
