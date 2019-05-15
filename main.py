@@ -4,7 +4,7 @@ from pywinusb import hid
 from openpyxl import load_workbook
 from time import sleep
 import styles
-from config import backupConfig
+from repository import Repository
 import json
 import warnings
 import sys
@@ -42,6 +42,7 @@ class MainWindow(QMainWindow):
         self.ui.messageBox = QMessageBox(self.ui.centralwidget)
         self.ui.messageBox.setWindowTitle(" ")
         self.all_hids = hid.find_all_hid_devices()
+        self.repository = Repository()
         self.currentIndex = 0
 
         # selects
@@ -82,13 +83,13 @@ class MainWindow(QMainWindow):
         self.rawValue = None
 
     def resetValues(self):
-        for index, measurement in enumerate(self.measurements):
-            if index <= int(len(self.measurements) / 2):
+        for index, measurement in enumerate(self.results):
+            if index <= int(len(self.results) / 2):
                 item = self.ui.leftTableWidget.takeItem(
                     index, 1)
             else:
                 item = self.ui.rightTableWidget.takeItem(
-                    index - int(len(self.measurements) / 2), 1)
+                    index - int(len(self.results) / 2), 1)
             del item
 
             try:
@@ -99,7 +100,7 @@ class MainWindow(QMainWindow):
         self.currentIndex = 0
 
         self.ui.progressBar.setValue(
-            self.currentIndex / len(self.measurements) * 100)
+            self.currentIndex / len(self.results) * 100)
 
         self.setMonitor("left")
 
@@ -168,7 +169,7 @@ class MainWindow(QMainWindow):
                           ] = self.mappings["right"]["tester"]["value"]
 
             # input measurements
-            for measurement in self.measurements:
+            for measurement in self.results:
                 if measurement["value"]:
                     worksheet[measurement["cell"]] = float(
                         measurement["value"])
@@ -203,9 +204,11 @@ class MainWindow(QMainWindow):
 
     def setTheme(self, theme):
         if theme == "dark":
+            self.ui.darkThemeButton.setChecked(True)
             stylesheet = styles.base + styles.dark
             self.config["theme"] = "dark"
         else:
+            self.ui.lightThemeButton.setChecked(True)
             stylesheet = styles.base + styles.light
             self.config["theme"] = "light"
         self.setStyleSheet(stylesheet)
@@ -216,39 +219,22 @@ class MainWindow(QMainWindow):
         if self.ui.leftMonitorSelect.isChecked() == True:
             self.currentIndex = row.row()
         else:
-            self.currentIndex = row.row() + int(len(self.measurements) / 2)
+            self.currentIndex = row.row() + int(len(self.results) / 2)
 
     def configure(self):
-        configFile = "config.json"
-
-        # if config file doesn't exist, create it from backup
-        if not os.path.isfile(configFile):
-            with open(configFile, "w+") as f:
-                f.write(json.dumps(backupConfig))
-
-        # open and load config
-        with open(configFile) as f:
-            self.config = json.loads(f.read())
-
-        theme = self.config["theme"]
+        theme = self.repository.getTheme()
         self.setTheme(theme)
+
         self.setMonitor("left")
 
-        if theme == "dark":
-            self.ui.darkThemeButton.setChecked(True)
-        else:
-            self.ui.lightThemeButton.setChecked(True)
-
         # set mappings
-        self.mappings = self.config[self.config["mappings"]]
-
-        # set measurements
-        self.measurements = self.mappings["left"]["measurements"] + \
-            self.mappings["right"]["measurements"]
+        self.results = self.repository.getResults()
+        self.left = self.repository.getLeftResults()
+        self.right = self.repository.getRightResults()
 
         # config tables
-        self.ui.leftTableWidget.setRowCount(int(len(self.measurements) / 2))
-        self.ui.rightTableWidget.setRowCount(int(len(self.measurements) / 2))
+        self.ui.leftTableWidget.setRowCount(len(self.left))
+        self.ui.rightTableWidget.setRowCount(len(self.right))
         self.ui.rightTableWidget.clicked.connect(self.setCurrentIndex)
         self.ui.leftTableWidget.clicked.connect(self.setCurrentIndex)
         self.ui.leftTableWidget.setHorizontalHeaderLabels(
@@ -260,18 +246,17 @@ class MainWindow(QMainWindow):
         self.ui.rightTableWidget.setAlternatingRowColors(True)
 
         # populate tables
-        for index, measurement in enumerate(self.mappings["left"]["measurements"]):
+        for index, result in enumerate(self.left):
             self.ui.leftTableWidget.setItem(
-                index, 0, QTableWidgetItem(measurement["name"]))
-            item = QTableWidgetItem(measurement["cell"])
+                index, 0, QTableWidgetItem(result.name))
             self.ui.leftTableWidget.setItem(
-                index, 2, item)
+                index, 2, QTableWidgetItem(result.cell))
 
-        for index, measurement in enumerate(self.mappings["right"]["measurements"]):
+        for index, result in enumerate(self.right):
             self.ui.rightTableWidget.setItem(
-                index, 0, QTableWidgetItem(measurement["name"]))
+                index, 0, QTableWidgetItem(result.name))
             self.ui.rightTableWidget.setItem(
-                index, 2, QTableWidgetItem(measurement["cell"]))
+                index, 2, QTableWidgetItem(result.cell))
 
         self.ui.leftTableWidget.itemChanged.connect(
             self.saveTableItem)
@@ -279,26 +264,22 @@ class MainWindow(QMainWindow):
             self.saveTableItem)
 
         self.ui.inputFileLabel.setText(
-            self.config["excelInputFile"].split("/")[-1])
+            self.repository.getInputFile().split("/")[-1])
         self.ui.outputFileLabel.setText(
-            self.config["excelOutputFile"].split("/")[-1])
+            self.repository.getOutputFile().split("/")[-1])
 
     def saveTableItem(self, item):
         if not item.column() == 1:
             if "left" in item.tableWidget().objectName():
                 if item.column() == 0:
-                    self.mappings["left"]["measurements"][item.column()
-                                                          ]["name"] = item.text()
+                    self.left[item.column()].name = item.text()
                 elif item.column() == 2:
-                    self.mappings["left"]["measurements"][item.column()
-                                                          ]["cell"] = item.text()
+                    self.left[item.column()].cell = item.text()
             else:
                 if item.column() == 0:
-                    self.mappings["right"]["measurements"][item.column()
-                                                           ]["name"] = item.text()
+                    self.right[item.column()].name = item.text()
                 elif item.column() == 2:
-                    self.mappings["right"]["measurements"][item.column()
-                                                           ]["cell"] = item.text()
+                    self.right[item.column()].cell = item.text()
             self.saveConfig()
 
     def changeText(self, textInput):
@@ -454,7 +435,7 @@ class MainWindow(QMainWindow):
         """
 
         # if all measurements taken, format excel and exit program
-        if self.currentIndex == len(self.measurements):
+        if self.currentIndex == len(self.results):
             self.saveData()
             self.formatExcel()
 
@@ -475,57 +456,57 @@ class MainWindow(QMainWindow):
             self.ui.lcdNumber.display(self.currentMeasurement)
 
             self.ui.measurementLabel.setText(
-                self.measurements[self.currentIndex]["name"])
+                self.results[self.currentIndex]["name"])
 
-            if self.currentIndex < int(len(self.measurements) / 2):
+            if self.currentIndex < int(len(self.results) / 2):
                 self.ui.leftMonitorLabel.setText(
-                    self.measurements[self.currentIndex]["name"])
+                    self.results[self.currentIndex]["name"])
                 self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
             else:
                 self.ui.leftMonitorLabel.setText("VASEN MONITORI")
                 self.ui.rightMonitorLabel.setText(
-                    self.measurements[self.currentIndex]["name"])
+                    self.results[self.currentIndex]["name"])
         except Exception as e:
             print(str(e))
 
     def addResult(self):
         if self.currentMeasurement:
-            if self.currentIndex < int(len(self.measurements) / 2):
+            if self.currentIndex < int(len(self.results) / 2):
                 self.ui.leftTableWidget.setItem(
                     self.currentIndex, 1, QTableWidgetItem(self.currentMeasurement))
                 self.setMonitor("left")
             else:
                 self.ui.rightTableWidget.setItem(
-                    self.currentIndex - int(len(self.measurements) / 2), 1, QTableWidgetItem(self.currentMeasurement))
+                    self.currentIndex - int(len(self.results) / 2), 1, QTableWidgetItem(self.currentMeasurement))
                 self.setMonitor("right")
 
-            self.measurements[self.currentIndex]["value"] = self.rawValue
+            self.results[self.currentIndex]["value"] = self.rawValue
             self.currentIndex = self.currentIndex + 1
 
             self.ui.progressBar.setValue(
-                self.currentIndex / len(self.measurements) * 100)
+                self.currentIndex / len(self.results) * 100)
 
     def removeResult(self):
         if self.currentIndex > 0:
-            if self.currentIndex <= int(len(self.measurements) / 2):
+            if self.currentIndex <= int(len(self.results) / 2):
                 item = self.ui.leftTableWidget.takeItem(
                     self.currentIndex - 1, 1)
                 self.setMonitor("left")
             else:
                 item = self.ui.rightTableWidget.takeItem(
-                    self.currentIndex - 1 - int(len(self.measurements) / 2), 1)
+                    self.currentIndex - 1 - int(len(self.results) / 2), 1)
                 self.setMonitor("right")
             del item
 
             try:
-                self.measurements[self.currentIndex - 1]["value"] = ""
+                self.results[self.currentIndex - 1]["value"] = ""
             except KeyError:
                 pass
 
             self.currentIndex = self.currentIndex - 1
 
             self.ui.progressBar.setValue(
-                self.currentIndex / len(self.measurements) * 100)
+                self.currentIndex / len(self.results) * 100)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_F5:
