@@ -5,6 +5,7 @@ from openpyxl import load_workbook
 from time import sleep
 import styles
 from repository import Repository
+from defaults import defaults
 import json
 import warnings
 import sys
@@ -38,11 +39,10 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setWindowIcon(QIcon("./" + "icon.png"))
+        self.setWindowIcon(QIcon("./icon.png"))
         self.ui.messageBox = QMessageBox(self.ui.centralwidget)
         self.ui.messageBox.setWindowTitle(" ")
         self.all_hids = hid.find_all_hid_devices()
-        self.repository = Repository()
         self.currentIndex = 0
 
         # selects
@@ -82,33 +82,33 @@ class MainWindow(QMainWindow):
         self.currentMeasurement = None
         self.rawValue = None
 
+    def restoreConfig(self):
+        configFile = "config.json"
+        with open(configFile, "w+") as f:
+            f.write(json.dumps(defaults))
+        self.configure()
+
     def resetValues(self):
-        for index, measurement in enumerate(self.results):
-            if index <= int(len(self.results) / 2):
+        for index, result in enumerate(self.db.results):
+            if index < len(self.db.leftResults):
                 item = self.ui.leftTableWidget.takeItem(
                     index, 1)
             else:
                 item = self.ui.rightTableWidget.takeItem(
-                    index - int(len(self.results) / 2), 1)
+                    index - len(self.db.leftResults), 1)
             del item
 
             try:
-                measurement["value"] = ""
+                result.value = ""
             except KeyError:
                 pass
 
         self.currentIndex = 0
 
         self.ui.progressBar.setValue(
-            self.currentIndex / len(self.results) * 100)
+            self.currentIndex / len(self.db.results) * 100)
 
         self.setMonitor("left")
-
-    def restoreConfig(self):
-        configFile = "config.json"
-        with open(configFile, "w+") as f:
-            f.write(json.dumps(backupConfig))
-        self.configure()
 
     def chooseInputFile(self):
         options = QFileDialog.Options()
@@ -117,7 +117,7 @@ class MainWindow(QMainWindow):
             self, "", "C:\\Mittaus", "xlsm(*.xlsm)", options=options)
         if fileName:
             self.ui.inputFileLabel.setText(fileName.split("/")[-1])
-        self.config["excelInputFile"] = fileName
+        self.db.inputFile = fileName
         self.saveConfig()
 
     def chooseOutputFile(self):
@@ -131,53 +131,49 @@ class MainWindow(QMainWindow):
             elif not fileName.split(".")[-1] == "xlsm":
                 fileName = ".".join(fileName.split(".")[:-1] + "xlsm")
             self.ui.outputFileLabel.setText(fileName.split("/")[-1])
-            self.config["excelOutputFile"] = fileName
-            self.saveConfig()
-
-    def saveConfig(self):
-        configFile = "config.json"
-
-        with open(configFile, "w") as f:
-            f.write(json.dumps(self.config))
+            self.db.outputFile = fileName
+            self.db.freeze()
 
     def saveData(self):
-        flag = False
         try:
             # suppress excel warnings
             warnings.filterwarnings("ignore")
 
             # make a copy of base excel file
-            copyfile(self.config["excelInputFile"],
-                     self.config["excelOutputFile"])
+            copyfile(self.db.inputFile,
+                     self.db.outputFile)
 
             # load workbook and activate worksheet
             workbook = load_workbook(
-                self.config["excelOutputFile"], keep_vba=True)
+                self.db.outputFile, keep_vba=True)
             worksheet = workbook.active
 
-            if self.mappings["left"]["monitor"]["value"]:
-                worksheet[self.mappings["left"]["monitor"]["cell"]
-                          ] = self.mappings["left"]["monitor"]["value"]
-            if self.mappings["right"]["monitor"]["value"]:
-                worksheet[self.mappings["right"]["monitor"]["cell"]
-                          ] = self.mappings["right"]["monitor"]["value"]
-            if self.mappings["left"]["tester"]["value"]:
-                worksheet[self.mappings["left"]["tester"]["cell"]
-                          ] = self.mappings["left"]["tester"]["value"]
-            if self.mappings["right"]["tester"]["value"]:
-                worksheet[self.mappings["right"]["tester"]["cell"]
-                          ] = self.mappings["right"]["tester"]["value"]
+            if self.db.leftLNumber.value:
+                worksheet[self.db.leftLNumber.cell
+                          ] = self.db.leftLNumber.value
+
+            if self.db.rightLNumber.value:
+                worksheet[self.db.rightLNumber.cell
+                          ] = self.db.rightLNumber.value
+
+            if self.db.leftTester.value:
+                worksheet[self.db.leftTester.cell
+                          ] = self.db.leftTester.value
+
+            if self.db.rightTester.value:
+                worksheet[self.db.rightTester.value
+                          ] = self.db.rightTester.value
 
             # input measurements
-            for measurement in self.results:
-                if measurement["value"]:
-                    worksheet[measurement["cell"]] = float(
-                        measurement["value"])
+            for result in self.db.results:
+                if result.value:
+                    worksheet[result.cell] = float(
+                        result.value)
 
             # save excel
-            workbook.save(self.config["excelOutputFile"])
+            workbook.save(self.db.outputFile)
             self.ui.messageBox.setText(
-                "Tallennettu tiedostoon {0}.".format(self.config["excelOutputFile"]))
+                "Tallennettu tiedostoon {0}.".format(self.db.outputFile))
             self.ui.messageBox.show()
         # if file is used by another process
         except PermissionError as e:
@@ -206,35 +202,28 @@ class MainWindow(QMainWindow):
         if theme == "dark":
             self.ui.darkThemeButton.setChecked(True)
             stylesheet = styles.base + styles.dark
-            self.config["theme"] = "dark"
         else:
             self.ui.lightThemeButton.setChecked(True)
             stylesheet = styles.base + styles.light
-            self.config["theme"] = "light"
         self.setStyleSheet(stylesheet)
-        self.config["theme"] = theme
-        self.saveConfig()
+        self.db.theme = theme
+        self.db.freeze()
 
     def setCurrentIndex(self, row):
         if self.ui.leftMonitorSelect.isChecked() == True:
             self.currentIndex = row.row()
         else:
-            self.currentIndex = row.row() + int(len(self.results) / 2)
+            self.currentIndex = row.row() + len(self.db.leftResults)
 
     def configure(self):
-        theme = self.repository.getTheme()
-        self.setTheme(theme)
-
+        self.db = Repository()
+        print(self.db.leftTester)
+        self.setTheme(self.db.theme)
         self.setMonitor("left")
 
-        # set mappings
-        self.results = self.repository.getResults()
-        self.left = self.repository.getLeftResults()
-        self.right = self.repository.getRightResults()
-
         # config tables
-        self.ui.leftTableWidget.setRowCount(len(self.left))
-        self.ui.rightTableWidget.setRowCount(len(self.right))
+        self.ui.leftTableWidget.setRowCount(len(self.db.leftResults))
+        self.ui.rightTableWidget.setRowCount(len(self.db.rightResults))
         self.ui.rightTableWidget.clicked.connect(self.setCurrentIndex)
         self.ui.leftTableWidget.clicked.connect(self.setCurrentIndex)
         self.ui.leftTableWidget.setHorizontalHeaderLabels(
@@ -246,13 +235,13 @@ class MainWindow(QMainWindow):
         self.ui.rightTableWidget.setAlternatingRowColors(True)
 
         # populate tables
-        for index, result in enumerate(self.left):
+        for index, result in enumerate(self.db.leftResults):
             self.ui.leftTableWidget.setItem(
                 index, 0, QTableWidgetItem(result.name))
             self.ui.leftTableWidget.setItem(
                 index, 2, QTableWidgetItem(result.cell))
 
-        for index, result in enumerate(self.right):
+        for index, result in enumerate(self.db.rightResults):
             self.ui.rightTableWidget.setItem(
                 index, 0, QTableWidgetItem(result.name))
             self.ui.rightTableWidget.setItem(
@@ -264,33 +253,33 @@ class MainWindow(QMainWindow):
             self.saveTableItem)
 
         self.ui.inputFileLabel.setText(
-            self.repository.getInputFile().split("/")[-1])
+            self.repository.inputFile().split("/")[-1])
         self.ui.outputFileLabel.setText(
-            self.repository.getOutputFile().split("/")[-1])
+            self.repository.outputFile().split("/")[-1])
 
     def saveTableItem(self, item):
         if not item.column() == 1:
             if "left" in item.tableWidget().objectName():
                 if item.column() == 0:
-                    self.left[item.column()].name = item.text()
+                    self.db.leftResults[item.row()].name = item.text()
                 elif item.column() == 2:
-                    self.left[item.column()].cell = item.text()
+                    self.db.leftResults[item.row()].cell = item.text()
             else:
                 if item.column() == 0:
-                    self.right[item.column()].name = item.text()
+                    self.db.rightResults[item.row()].name = item.text()
                 elif item.column() == 2:
-                    self.right[item.column()].cell = item.text()
+                    self.db.rightResults[item.row()].cell = item.text()
             self.saveConfig()
 
     def changeText(self, textInput):
         if textInput == self.ui.leftLNumberInput:
-            self.mappings["left"]["monitor"]["value"] = textInput.text()
+            self.db.leftLNumber.value = textInput.text()
         if textInput == self.ui.rightLNumberInput:
-            self.mappings["right"]["monitor"]["value"] = textInput.text()
+            self.db.rightTester.value = textInput.text()
         if textInput == self.ui.leftTesterInput:
-            self.mappings["left"]["tester"]["value"] = textInput.text()
+            self.db.leftTester.value = textInput.text()
         if textInput == self.ui.rightTesterInput:
-            self.mappings["right"]["tester"]["value"] = textInput.text()
+            self.db.rightTester.value = textInput.text()
 
     def formatExcel(self):
         pass
@@ -435,7 +424,7 @@ class MainWindow(QMainWindow):
         """
 
         # if all measurements taken, format excel and exit program
-        if self.currentIndex == len(self.results):
+        if self.currentIndex == len(self.db.results):
             self.saveData()
             self.formatExcel()
 
@@ -456,57 +445,57 @@ class MainWindow(QMainWindow):
             self.ui.lcdNumber.display(self.currentMeasurement)
 
             self.ui.measurementLabel.setText(
-                self.results[self.currentIndex]["name"])
+                self.db.results[self.currentIndex].name)
 
-            if self.currentIndex < int(len(self.results) / 2):
+            if self.currentIndex < len(self.leftResults):
                 self.ui.leftMonitorLabel.setText(
-                    self.results[self.currentIndex]["name"])
+                    self.db.results[self.currentIndex].name)
                 self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
             else:
                 self.ui.leftMonitorLabel.setText("VASEN MONITORI")
                 self.ui.rightMonitorLabel.setText(
-                    self.results[self.currentIndex]["name"])
+                    self.db.results[self.currentIndex].name)
         except Exception as e:
             print(str(e))
 
     def addResult(self):
         if self.currentMeasurement:
-            if self.currentIndex < int(len(self.results) / 2):
+            if self.currentIndex < len(self.db.leftResults):
                 self.ui.leftTableWidget.setItem(
                     self.currentIndex, 1, QTableWidgetItem(self.currentMeasurement))
                 self.setMonitor("left")
             else:
                 self.ui.rightTableWidget.setItem(
-                    self.currentIndex - int(len(self.results) / 2), 1, QTableWidgetItem(self.currentMeasurement))
+                    self.currentIndex - len(self.db.leftResults), 1, QTableWidgetItem(self.currentMeasurement))
                 self.setMonitor("right")
 
-            self.results[self.currentIndex]["value"] = self.rawValue
+            self.db.results[self.currentIndex].value = self.rawValue
             self.currentIndex = self.currentIndex + 1
 
             self.ui.progressBar.setValue(
-                self.currentIndex / len(self.results) * 100)
+                self.currentIndex / len(self.db.results) * 100)
 
     def removeResult(self):
         if self.currentIndex > 0:
-            if self.currentIndex <= int(len(self.results) / 2):
+            if self.currentIndex - 1 < len(self.db.leftResults):
                 item = self.ui.leftTableWidget.takeItem(
                     self.currentIndex - 1, 1)
                 self.setMonitor("left")
             else:
                 item = self.ui.rightTableWidget.takeItem(
-                    self.currentIndex - 1 - int(len(self.results) / 2), 1)
+                    self.currentIndex - 1 - len(self.db.leftResults), 1)
                 self.setMonitor("right")
             del item
 
             try:
-                self.results[self.currentIndex - 1]["value"] = ""
+                self.db.results[self.currentIndex - 1].value = ""
             except KeyError:
                 pass
 
             self.currentIndex = self.currentIndex - 1
 
             self.ui.progressBar.setValue(
-                self.currentIndex / len(self.results) * 100)
+                self.currentIndex / len(self.db.results) * 100)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_F5:

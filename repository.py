@@ -1,6 +1,7 @@
 import os
 import json
 from defaults import defaults
+from result import Result
 
 configFile = "config.json"
 
@@ -11,27 +12,82 @@ class Repository:
             with open(configFile, "w+") as f:
                 f.write(json.dumps(defaults))
 
-                # open and load config
-                with open(configFile) as f:
-                    data = json.loads(f.read())
-                    self.theme = data["theme"]
-                    self.inputFile = data["inputFile"]
-                    self.outputFile = data["outputFile"]
-                    self.inputFile = data["inputFile"]
-                    self.left = data["left"]
-                    self.right = data["right"]
+        # open and load config
+        with open(configFile) as f:
 
-    def getTheme(self):
-        return self.theme
+            data = json.loads(f.read())
+            self.theme = data["theme"]
+            self.inputFile = data["inputFile"]
+            self.outputFile = data["outputFile"]
+            self.inputFile = data["inputFile"]
 
-    def getResults(self):
-        return self.left["results"] + self.right["results"]
+            leftLNumber = data["left"]["lnumber"]
+            print(leftLNumber)
+            self.leftLNumber = Result(
+                name=leftLNumber["name"],
+                value=leftLNumber["value"],
+                cell=leftLNumber["cell"]
+            )
 
-    def getLeftResults(self):
-        return self.left["results"]
+            rightLNumber = data["right"]["lnumber"]
+            self.rightLNumber = Result(
+                name=rightLNumber["name"],
+                value=rightLNumber["value"],
+                cell=rightLNumber["cell"]
+            )
 
-    def getRightResults(self):
-        return self.right["results"]
+            leftTester = data["left"]["tester"]
+            self.leftTester = Result(
+                name=leftTester["name"],
+                value=leftTester["value"],
+                cell=leftTester["cell"]
+            )
 
-    def getInputFile(self):
-        return self.inputFile
+            rightTester = data["right"]["tester"]
+            self.rightTester = Result(
+                name=rightTester["name"],
+                value=rightTester["value"],
+                cell=rightTester["cell"]
+            )
+
+            self.leftResults = []
+            for result in list(data["left"]["results"]):
+                result = Result(
+                    name=result["name"],
+                    value=result["value"],
+                    cell=result["cell"],
+                )
+                self.leftResults.append(result)
+
+            self.rightResults = []
+            for result in list(data["right"]["results"]):
+                result = Result(
+                    name=result["name"],
+                    value=result["value"],
+                    cell=result["cell"],
+                )
+                self.rightResults.append(result)
+
+            self.results = self.leftResults + self.rightResults
+
+    def freeze(self):
+        configFile = "conf.json"
+
+        data = {
+            "theme": self.theme,
+            "inputFile": self.inputFile,
+            "outputFile": self.outputFile,
+            "left": {
+                "leftLNumber": self.leftLNumber,
+                "leftTester": self.leftTester,
+                "leftResults": [result.__dict__ for result in self.leftResults],
+            },
+            "right": {
+                "rightLNumber": self.rightLNumber,
+                "rightTester": self.rightTester,
+                "rightResults": [result.__dict__ for result in self.rightResults],
+            }
+        }
+
+        with open(configFile, "w+") as f:
+            f.write(json.dumps(data))

@@ -3,7 +3,7 @@ defaults = {
     "inputFile": "C:/Mittaus/mittaus.xlsm",
     "outputFile": "C:/Mittaus/output.xlsm",
     "left": {
-        "monitor": {
+        "lnumber": {
             "name": "L-numero",
             "cell": "B14",
             "value": ""
@@ -196,7 +196,7 @@ defaults = {
         ]
     },
     "right": {
-        "monitor": {
+        "lnumber": {
             "name": "Oikea L-numero",
             "cell": "F14",
             "value": ""

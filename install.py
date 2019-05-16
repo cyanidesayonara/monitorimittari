@@ -3,7 +3,8 @@ import subprocess
 
 
 def main():
-    subprocess.run(["pyinstaller", "--onefile", "--windowed", "main.py"])
+    subprocess.run(["pyinstaller", "--onefile",
+                    "--windowed", "main.py"])
     copyfile("config.json",
              "dist/config.json")
 
