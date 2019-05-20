@@ -22,7 +22,6 @@ class Repository:
             self.inputFile = data["inputFile"]
 
             leftLNumber = data["left"]["lnumber"]
-            print(leftLNumber)
             self.leftLNumber = Result(
                 name=leftLNumber["name"],
                 value=leftLNumber["value"],
@@ -71,21 +70,21 @@ class Repository:
             self.results = self.leftResults + self.rightResults
 
     def freeze(self):
-        configFile = "conf.json"
+        configFile = "config.json"
 
         data = {
             "theme": self.theme,
             "inputFile": self.inputFile,
             "outputFile": self.outputFile,
             "left": {
-                "leftLNumber": self.leftLNumber,
-                "leftTester": self.leftTester,
-                "leftResults": [result.__dict__ for result in self.leftResults],
+                "lnumber": self.leftLNumber.__dict__,
+                "tester": self.leftTester.__dict__,
+                "results": [result.__dict__ for result in self.leftResults],
             },
             "right": {
-                "rightLNumber": self.rightLNumber,
-                "rightTester": self.rightTester,
-                "rightResults": [result.__dict__ for result in self.rightResults],
+                "lnumber": self.rightLNumber.__dict__,
+                "tester": self.rightTester.__dict__,
+                "results": [result.__dict__ for result in self.rightResults],
             }
         }
 

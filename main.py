@@ -118,7 +118,7 @@ class MainWindow(QMainWindow):
         if fileName:
             self.ui.inputFileLabel.setText(fileName.split("/")[-1])
         self.db.inputFile = fileName
-        self.saveConfig()
+        self.db.freeze()
 
     def chooseOutputFile(self):
         options = QFileDialog.Options()
@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
                           ] = self.db.leftTester.value
 
             if self.db.rightTester.value:
-                worksheet[self.db.rightTester.value
+                worksheet[self.db.rightTester.cell
                           ] = self.db.rightTester.value
 
             # input measurements
@@ -217,7 +217,6 @@ class MainWindow(QMainWindow):
 
     def configure(self):
         self.db = Repository()
-        print(self.db.leftTester)
         self.setTheme(self.db.theme)
         self.setMonitor("left")
 
@@ -253,9 +252,9 @@ class MainWindow(QMainWindow):
             self.saveTableItem)
 
         self.ui.inputFileLabel.setText(
-            self.repository.inputFile().split("/")[-1])
+            self.db.inputFile.split("/")[-1])
         self.ui.outputFileLabel.setText(
-            self.repository.outputFile().split("/")[-1])
+            self.db.outputFile.split("/")[-1])
 
     def saveTableItem(self, item):
         if not item.column() == 1:
@@ -269,7 +268,7 @@ class MainWindow(QMainWindow):
                     self.db.rightResults[item.row()].name = item.text()
                 elif item.column() == 2:
                     self.db.rightResults[item.row()].cell = item.text()
-            self.saveConfig()
+            self.db.freeze()
 
     def changeText(self, textInput):
         if textInput == self.ui.leftLNumberInput:
@@ -425,8 +424,11 @@ class MainWindow(QMainWindow):
 
         # if all measurements taken, format excel and exit program
         if self.currentIndex == len(self.db.results):
+            print("xxx")
             self.saveData()
+            print("yyy")
             self.formatExcel()
+            self.device.close()
 
         try:
             # format value to string #.########
@@ -447,7 +449,7 @@ class MainWindow(QMainWindow):
             self.ui.measurementLabel.setText(
                 self.db.results[self.currentIndex].name)
 
-            if self.currentIndex < len(self.leftResults):
+            if self.currentIndex < len(self.db.leftResults):
                 self.ui.leftMonitorLabel.setText(
                     self.db.results[self.currentIndex].name)
                 self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
@@ -469,11 +471,14 @@ class MainWindow(QMainWindow):
                     self.currentIndex - len(self.db.leftResults), 1, QTableWidgetItem(self.currentMeasurement))
                 self.setMonitor("right")
 
-            self.db.results[self.currentIndex].value = self.rawValue
-            self.currentIndex = self.currentIndex + 1
+            try:
+                self.db.results[self.currentIndex].value = self.rawValue
+                self.currentIndex = self.currentIndex + 1
 
-            self.ui.progressBar.setValue(
-                self.currentIndex / len(self.db.results) * 100)
+                self.ui.progressBar.setValue(
+                    self.currentIndex / len(self.db.results) * 100)
+            except IndexError as e:
+                print(str(e))
 
     def removeResult(self):
         if self.currentIndex > 0:
