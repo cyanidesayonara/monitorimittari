@@ -24,7 +24,8 @@ dark = """
     }
     #MainWindow #measurementLabel,
     #MainWindow #leftMonitorLabel,
-    #MainWindow #rightMonitorLabel  {
+    #MainWindow #rightMonitorLabel,
+    #MainWindow .QMessageBox QLabel {
         background-color: #444;
     }
     #MainWindow .QRadioButton {

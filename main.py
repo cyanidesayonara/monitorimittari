@@ -17,6 +17,13 @@ from PyQt5.QtGui import QIcon, QFont
 shell = client.Dispatch("WScript.Shell")
 
 
+def resource_path(relative_path):
+    """ Get absolute path to resource for PyInstaller """
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(
+        os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
+
 class Worker(QRunnable):
     """
     Worker is passed a function from MainWindow which runs in a separate thread
@@ -39,7 +46,8 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setWindowIcon(QIcon("./icon.png"))
+        icon_path = resource_path("icon.ico")
+        self.setWindowIcon(QIcon(icon_path))
         self.ui.messageBox = QMessageBox(self.ui.centralwidget)
         self.ui.messageBox.setWindowTitle(" ")
         self.all_hids = hid.find_all_hid_devices()
@@ -55,9 +63,9 @@ class MainWindow(QMainWindow):
             lambda: self.setMonitor("left"))
         self.ui.rightMonitorSelect.clicked.connect(
             lambda: self.setMonitor("right"))
-        self.ui.lightThemeButton.toggled.connect(
+        self.ui.lightThemeButton.clicked.connect(
             lambda: self.setTheme("light"))
-        self.ui.darkThemeButton.toggled.connect(
+        self.ui.darkThemeButton.clicked.connect(
             lambda: self.setTheme("dark"))
         self.ui.saveButton.clicked.connect(self.saveData)
         self.ui.inputFileButton.clicked.connect(self.chooseInputFile)
@@ -76,8 +84,6 @@ class MainWindow(QMainWindow):
             lambda: self.changeText(self.ui.rightTesterInput))
 
         self.threadpool = QThreadPool()
-        self.mappings = {}
-        self.config = {}
         self.device = None
         self.currentMeasurement = None
         self.rawValue = None
@@ -114,7 +120,7 @@ class MainWindow(QMainWindow):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getOpenFileName(
-            self, "", "C:\\Mittaus", "xlsm(*.xlsm)", options=options)
+            self, "", "C:/Mittaus", "Excel file(*.xls *.xlsx *.xlsm)", options=options)
         if fileName:
             self.ui.inputFileLabel.setText(fileName.split("/")[-1])
         self.db.inputFile = fileName
@@ -124,7 +130,7 @@ class MainWindow(QMainWindow):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getSaveFileName(
-            self, "", "C:\\Mittaus", "xlsm(*.xlsm)", options=options)
+            self, "", "C:/Mittaus", "Excel file(*.xls *.xlsx *.xlsm)", options=options)
         if fileName:
             if "." not in fileName:
                 fileName = fileName + ".xlsm"
@@ -175,6 +181,7 @@ class MainWindow(QMainWindow):
             self.ui.messageBox.setText(
                 "Tallennettu tiedostoon {0}.".format(self.db.outputFile))
             self.ui.messageBox.show()
+
         # if file is used by another process
         except PermissionError as e:
             self.ui.messageBox.setText(
@@ -280,95 +287,6 @@ class MainWindow(QMainWindow):
         if textInput == self.ui.rightTesterInput:
             self.db.rightTester.value = textInput.text()
 
-    def formatExcel(self):
-        pass
-        # try:
-        #     # suppress excel warnings
-        #     warnings.filterwarnings("ignore")
-        #     sleep(1)
-        #     os.startfile(self.config["excelOutputFile"])
-        #     sleep(1)
-        #     # TODO focus on excel
-        #     # shell.SendKeys("%{F4}", 0)
-        #     shell.SendKeys("{ENTER}", 0)
-        #     sleep(1)
-        #     shell.SendKeys("%", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("o", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("u", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("m", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("p", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("p", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("{ENTER}", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("^+f", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("{F2}", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("+{HOME}", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("^c", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("{ESC}", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("%", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("o", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("u", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("m", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("u", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("{ENTER}", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("{F12}", 0)
-        #     sleep(2)
-        #     shell.SendKeys("^v", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("{ENTER}", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("^g", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("A", 0)
-        #     # sleep(0.1)
-        #     shell.SendKeys("9", 0)
-        #     # sleep(0.1)
-        #     shell.SendKeys("9", 0)
-        #     # sleep(0.1)
-        #     shell.SendKeys("{ENTER}", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("^g", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("h", 0)
-        #     # sleep(0.1)
-        #     shell.SendKeys("6", 0)
-        #     # sleep(0.1)
-        #     shell.SendKeys("5", 0)
-        #     # sleep(0.1)
-        #     shell.SendKeys("{ENTER}", 0)
-        #     sleep(0.1)
-        #     shell.SendKeys("{F2}", 0)
-        #     sleep(0.1)
-        #     shell.AppActivate('Get Value 0.5')
-        #     sleep(0.1)
-        # # if file is used by another process
-        # except PermissionError as e:
-        #     print(
-        #         "Excel-tiedosto on auki toisessa ikkunassa. Ole hyvä ja sulje tiedosto.")
-        #     self.close()
-        # # if base excel file doesn't exist
-        # except FileNotFoundError as e:
-        #     print(
-        #         "Excel-tiedostoa ei löydy. Ole hyvä ja valitse tiedosto uudelleen.")
-        #     self.close()
-
     def showDevices(self):
         """
         list connected usb devices
@@ -400,6 +318,8 @@ class MainWindow(QMainWindow):
         # wrong input device
         except Exception as e:
             self.ui.measurementLabel.setText("Ei signaalia")
+            self.currentMeasurement = None
+            self.ui.lcdNumber.display(0)
             self.ui.leftMonitorLabel.setText("VASEN MONITORI")
             self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
             print(str(e))
@@ -414,8 +334,10 @@ class MainWindow(QMainWindow):
         self.device = self.all_hids[selection]
 
         # use worker class to send data to handler in another thread
-        worker = Worker(self.sendData)
-        self.threadpool.start(worker)
+        self.worker = Worker(self.sendData)
+        self.threadpool.start(self.worker)
+
+        self.setFocus()
 
     def sample_handler(self, data):
         """
@@ -423,12 +345,8 @@ class MainWindow(QMainWindow):
         """
 
         # if all measurements taken, format excel and exit program
-        if self.currentIndex == len(self.db.results):
-            print("xxx")
-            self.saveData()
-            print("yyy")
-            self.formatExcel()
-            self.device.close()
+        if self.currentIndex >= len(self.db.results):
+            return
 
         try:
             # format value to string #.########
@@ -479,6 +397,12 @@ class MainWindow(QMainWindow):
                     self.currentIndex / len(self.db.results) * 100)
             except IndexError as e:
                 print(str(e))
+
+            if self.currentIndex >= len(self.db.results):
+                self.ui.measurementLabel.setText("Valmis")
+                self.ui.leftMonitorLabel.setText("VASEN MONITORI")
+                self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
+                self.saveData()
 
     def removeResult(self):
         if self.currentIndex > 0:
