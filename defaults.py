@@ -1,7 +1,6 @@
 defaults = {
     "theme": "light",
-    "inputFile": "C:/Mittaus/mittaus.xlsm",
-    "outputFile": "C:/Mittaus/output.xlsm",
+    "inputFile": "",
     "left": {
         "lnumber": {
             "name": "L-numero",

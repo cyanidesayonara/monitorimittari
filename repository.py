@@ -18,8 +18,7 @@ class Repository:
             data = json.loads(f.read())
             self.theme = data["theme"]
             self.inputFile = data["inputFile"]
-            self.outputFile = data["outputFile"]
-            self.inputFile = data["inputFile"]
+            self.outputFile = ""
 
             leftLNumber = data["left"]["lnumber"]
             self.leftLNumber = Result(
@@ -75,7 +74,6 @@ class Repository:
         data = {
             "theme": self.theme,
             "inputFile": self.inputFile,
-            "outputFile": self.outputFile,
             "left": {
                 "lnumber": self.leftLNumber.__dict__,
                 "tester": self.leftTester.__dict__,

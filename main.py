@@ -10,6 +10,7 @@ import json
 import warnings
 import sys
 import os
+import datetime
 from ui import Ui_MainWindow
 from PyQt5.QtCore import Qt, QRunnable, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMessageBox, QFileDialog
@@ -67,9 +68,15 @@ class MainWindow(QMainWindow):
             lambda: self.setTheme("light"))
         self.ui.darkThemeButton.clicked.connect(
             lambda: self.setTheme("dark"))
+        self.ui.prideThemeButton.clicked.connect(
+            lambda: self.setTheme("pride"))
         self.ui.saveButton.clicked.connect(self.saveData)
         self.ui.inputFileButton.clicked.connect(self.chooseInputFile)
         self.ui.outputFileButton.clicked.connect(self.chooseOutputFile)
+        self.ui.inputFileButton.setStyleSheet(
+            'text-align:left;padding:5px;')
+        self.ui.outputFileButton.setStyleSheet(
+            'text-align:left;padding:5px;')
         self.ui.resetButton.clicked.connect(self.resetValues)
         self.ui.restoreButton.clicked.connect(self.restoreConfig)
 
@@ -78,6 +85,10 @@ class MainWindow(QMainWindow):
             lambda: self.changeText(self.ui.leftLNumberInput))
         self.ui.rightLNumberInput.textEdited.connect(
             lambda: self.changeText(self.ui.rightLNumberInput))
+        self.ui.leftLNumberInput.textEdited.connect(
+            self.changeOutputFilename)
+        self.ui.rightLNumberInput.textEdited.connect(
+            self.changeOutputFilename)
         self.ui.leftTesterInput.textEdited.connect(
             lambda: self.changeText(self.ui.leftTesterInput))
         self.ui.rightTesterInput.textEdited.connect(
@@ -122,9 +133,10 @@ class MainWindow(QMainWindow):
         fileName, _ = QFileDialog.getOpenFileName(
             self, "", "C:/Mittaus", "Excel file(*.xls *.xlsx *.xlsm)", options=options)
         if fileName:
-            self.ui.inputFileLabel.setText(fileName.split("/")[-1])
-        self.db.inputFile = fileName
-        self.db.freeze()
+            self.ui.inputFileButton.setText(fileName)
+            self.db.inputFile = fileName
+            self.db.freeze()
+            self.setSaveButtonDisabled()
 
     def chooseOutputFile(self):
         options = QFileDialog.Options()
@@ -136,9 +148,9 @@ class MainWindow(QMainWindow):
                 fileName = fileName + ".xlsm"
             elif not fileName.split(".")[-1] == "xlsm":
                 fileName = ".".join(fileName.split(".")[:-1] + "xlsm")
-            self.ui.outputFileLabel.setText(fileName.split("/")[-1])
+            self.ui.outputFileButton.setText(fileName)
             self.db.outputFile = fileName
-            self.db.freeze()
+            self.setSaveButtonDisabled()
 
     def saveData(self):
         try:
@@ -209,6 +221,9 @@ class MainWindow(QMainWindow):
         if theme == "dark":
             self.ui.darkThemeButton.setChecked(True)
             stylesheet = styles.base + styles.dark
+        elif theme == "pride":
+            self.ui.prideThemeButton.setChecked(True)
+            stylesheet = styles.base + styles.pride
         else:
             self.ui.lightThemeButton.setChecked(True)
             stylesheet = styles.base + styles.light
@@ -222,10 +237,17 @@ class MainWindow(QMainWindow):
         else:
             self.currentIndex = row.row() + len(self.db.leftResults)
 
+    def setSaveButtonDisabled(self):
+        if self.db.inputFile == "" or self.db.outputFile == "":
+            self.ui.saveButton.setDisabled(True)
+        else:
+            self.ui.saveButton.setDisabled(False)
+
     def configure(self):
         self.db = Repository()
         self.setTheme(self.db.theme)
         self.setMonitor("left")
+        self.setSaveButtonDisabled()
 
         # config tables
         self.ui.leftTableWidget.setRowCount(len(self.db.leftResults))
@@ -258,10 +280,8 @@ class MainWindow(QMainWindow):
         self.ui.rightTableWidget.itemChanged.connect(
             self.saveTableItem)
 
-        self.ui.inputFileLabel.setText(
-            self.db.inputFile.split("/")[-1])
-        self.ui.outputFileLabel.setText(
-            self.db.outputFile.split("/")[-1])
+        if self.db.inputFile and os.path.isfile(self.db.inputFile):
+            self.ui.inputFileButton.setText(self.db.inputFile)
 
     def saveTableItem(self, item):
         if not item.column() == 1:
@@ -277,11 +297,39 @@ class MainWindow(QMainWindow):
                     self.db.rightResults[item.row()].cell = item.text()
             self.db.freeze()
 
+    def changeOutputFilename(self):
+        basename = "/".join(self.db.inputFile.split("/")[0:-1])
+
+        if not basename:
+            basename = "C:/Mittaus"
+
+        timestamp = datetime.datetime.now().strftime("%d%m%y")
+        leftl = self.db.leftLNumber.value
+        rightl = self.db.rightLNumber.value
+
+        filename = basename + "/" + leftl
+
+        if rightl:
+            if leftl == rightl:
+                filename = filename + "-" + rightl
+            elif leftl[:-1] == rightl[:-1]:
+                filename = filename + "-" + rightl[-1:]
+            elif leftl[:-2] == rightl[:-2]:
+                filename = filename + "-" + rightl[-2:]
+            else:
+                filename = filename + "-" + rightl
+
+        filename = filename + "_" + timestamp + ".xlsm"
+
+        self.ui.outputFileButton.setText(filename)
+        self.db.outputFile = filename
+        self.setSaveButtonDisabled()
+
     def changeText(self, textInput):
         if textInput == self.ui.leftLNumberInput:
             self.db.leftLNumber.value = textInput.text()
         if textInput == self.ui.rightLNumberInput:
-            self.db.rightTester.value = textInput.text()
+            self.db.rightLNumber.value = textInput.text()
         if textInput == self.ui.leftTesterInput:
             self.db.leftTester.value = textInput.text()
         if textInput == self.ui.rightTesterInput:
@@ -364,8 +412,7 @@ class MainWindow(QMainWindow):
 
             self.ui.lcdNumber.display(self.currentMeasurement)
 
-            self.ui.measurementLabel.setText(
-                self.db.results[self.currentIndex].name)
+            self.measuringAnimation()
 
             if self.currentIndex < len(self.db.leftResults):
                 self.ui.leftMonitorLabel.setText(
@@ -377,6 +424,16 @@ class MainWindow(QMainWindow):
                     self.db.results[self.currentIndex].name)
         except Exception as e:
             print(str(e))
+
+    def measuringAnimation(self):
+        if self.ui.measurementLabel.text() == "Mitataan":
+            self.ui.measurementLabel.setText("Mitataan.")
+        if self.ui.measurementLabel.text() == "Mitataan.":
+            self.ui.measurementLabel.setText("Mitataan..")
+        elif self.ui.measurementLabel.text() == "Mitataan..":
+            self.ui.measurementLabel.setText("Mitataan...")
+        else:
+            self.ui.measurementLabel.setText("Mitataan")
 
     def addResult(self):
         if self.currentMeasurement:

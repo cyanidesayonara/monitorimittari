@@ -44,9 +44,9 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>40</y>
+      <y>380</y>
       <width>260</width>
-      <height>20</height>
+      <height>31</height>
      </rect>
     </property>
    </widget>
@@ -54,10 +54,16 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>20</y>
+      <y>360</y>
       <width>260</width>
       <height>20</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
     </property>
     <property name="text">
      <string>Valitse laite</string>
@@ -67,9 +73,9 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>270</y>
+      <y>120</y>
       <width>260</width>
-      <height>70</height>
+      <height>80</height>
      </rect>
     </property>
     <property name="lineWidth">
@@ -89,9 +95,9 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>180</y>
+      <y>19</y>
       <width>260</width>
-      <height>70</height>
+      <height>80</height>
      </rect>
     </property>
     <property name="font">
@@ -170,7 +176,7 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>510</y>
+      <y>560</y>
       <width>120</width>
       <height>20</height>
      </rect>
@@ -180,7 +186,7 @@
     <property name="geometry">
      <rect>
       <x>460</x>
-      <y>510</y>
+      <y>560</y>
       <width>120</width>
       <height>20</height>
      </rect>
@@ -190,14 +196,16 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>360</y>
+      <y>220</y>
       <width>120</width>
       <height>120</height>
      </rect>
     </property>
     <property name="font">
      <font>
-      <pointsize>10</pointsize>
+      <pointsize>14</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
      </font>
     </property>
     <property name="frameShape">
@@ -212,19 +220,24 @@
     <property name="alignment">
      <set>Qt::AlignCenter</set>
     </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
    </widget>
    <widget class="QLabel" name="rightMonitorLabel">
     <property name="geometry">
      <rect>
       <x>460</x>
-      <y>360</y>
+      <y>220</y>
       <width>120</width>
       <height>120</height>
      </rect>
     </property>
     <property name="font">
      <font>
-      <pointsize>10</pointsize>
+      <pointsize>14</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
      </font>
     </property>
     <property name="frameShape">
@@ -239,15 +252,24 @@
     <property name="alignment">
      <set>Qt::AlignCenter</set>
     </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
    </widget>
    <widget class="QLabel" name="leftLNumberLabel">
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>490</y>
+      <y>540</y>
       <width>120</width>
       <height>20</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
     </property>
     <property name="text">
      <string>L-Numero</string>
@@ -257,10 +279,16 @@
     <property name="geometry">
      <rect>
       <x>460</x>
-      <y>490</y>
+      <y>540</y>
       <width>120</width>
       <height>20</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
     </property>
     <property name="text">
      <string>L-Numero</string>
@@ -270,10 +298,16 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>540</y>
+      <y>590</y>
       <width>120</width>
       <height>20</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
     </property>
     <property name="text">
      <string>Mittaaja(t)</string>
@@ -283,10 +317,16 @@
     <property name="geometry">
      <rect>
       <x>460</x>
-      <y>540</y>
+      <y>590</y>
       <width>120</width>
       <height>20</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
     </property>
     <property name="text">
      <string>Mittaaja(t)</string>
@@ -296,7 +336,7 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>560</y>
+      <y>610</y>
       <width>120</width>
       <height>20</height>
      </rect>
@@ -306,44 +346,11 @@
     <property name="geometry">
      <rect>
       <x>460</x>
-      <y>560</y>
+      <y>610</y>
       <width>120</width>
       <height>20</height>
      </rect>
     </property>
-   </widget>
-   <widget class="QWidget" name="verticalLayoutWidget">
-    <property name="geometry">
-     <rect>
-      <x>320</x>
-      <y>600</y>
-      <width>121</width>
-      <height>61</height>
-     </rect>
-    </property>
-    <layout class="QVBoxLayout" name="themeBox">
-     <item>
-      <widget class="QLabel" name="themeLabel">
-       <property name="text">
-        <string>Teema</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QRadioButton" name="lightThemeButton">
-       <property name="text">
-        <string>Vaalea</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QRadioButton" name="darkThemeButton">
-       <property name="text">
-        <string>Tumma</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
    </widget>
    <widget class="QPushButton" name="leftMonitorSelect">
     <property name="geometry">
@@ -464,52 +471,38 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>70</y>
-      <width>150</width>
+      <y>415</y>
+      <width>260</width>
       <height>30</height>
      </rect>
     </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="inputFileButton">
-    <property name="geometry">
-     <rect>
-      <x>470</x>
-      <y>70</y>
-      <width>110</width>
-      <height>30</height>
-     </rect>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
     </property>
     <property name="text">
      <string>Valitse excel-pohja</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="outputFileButton">
-    <property name="geometry">
-     <rect>
-      <x>470</x>
-      <y>110</y>
-      <width>110</width>
-      <height>30</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Valitse luotava excel</string>
     </property>
    </widget>
    <widget class="QLabel" name="outputFileLabel">
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>110</y>
-      <width>150</width>
+      <y>475</y>
+      <width>260</width>
       <height>30</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
     <property name="text">
-     <string/>
+     <string>Valitse luotava excel tai syötä L-Numero</string>
     </property>
    </widget>
    <widget class="QPushButton" name="restoreButton">
@@ -536,6 +529,78 @@
     </property>
     <property name="text">
      <string>Tyhjennä mittaukset</string>
+    </property>
+   </widget>
+   <widget class="QWidget" name="horizontalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>319</x>
+      <y>640</y>
+      <width>261</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QLabel" name="themeLabel">
+       <property name="font">
+        <font>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Teema</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QRadioButton" name="lightThemeButton">
+       <property name="text">
+        <string>Vaalea</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QRadioButton" name="darkThemeButton">
+       <property name="text">
+        <string>Tumma</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QRadioButton" name="prideThemeButton">
+       <property name="text">
+        <string>Pride</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+   <widget class="QPushButton" name="outputFileButton">
+    <property name="geometry">
+     <rect>
+      <x>320</x>
+      <y>500</y>
+      <width>260</width>
+      <height>30</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Ei valittu</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="inputFileButton">
+    <property name="geometry">
+     <rect>
+      <x>320</x>
+      <y>440</y>
+      <width>260</width>
+      <height>30</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Ei valittu</string>
     </property>
    </widget>
   </widget>
