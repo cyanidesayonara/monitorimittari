@@ -1,21 +1,23 @@
-from shutil import copyfile
-from win32com import client
-from pywinusb import hid
-from openpyxl import load_workbook
-from time import sleep
-import styles
-from repository import Repository
-from defaults import defaults
+import os
+import sys
 import json
 import warnings
-import sys
-import os
 import datetime
-from ui import Ui_MainWindow
+from time import sleep
+from shutil import copyfile
+from pywinusb import hid
+from editpyxl import Workbook
+from win32com import client
 from PyQt5.QtCore import Qt, QRunnable, QThreadPool, pyqtSlot
 from PyQt5.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMessageBox, QFileDialog
-from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtGui import QIcon
+from ui import Ui_MainWindow
+from defaults import defaults
+from repository import Repository, CONFIG_FILE
+import styles
 shell = client.Dispatch("WScript.Shell")
+
+RESULTS_FOLDER = "C:/Mittaus"
 
 
 def resource_path(relative_path):
@@ -31,7 +33,7 @@ class Worker(QRunnable):
     """
 
     def __init__(self, fn, *args, **kwargs):
-        super(Worker, self).__init__()
+        super().__init__()
         # Store constructor arguments (re-used for processing)
         self.fn = fn
         self.args = args
@@ -44,7 +46,7 @@ class Worker(QRunnable):
 
 class MainWindow(QMainWindow):
     def __init__(self):
-        super(MainWindow, self).__init__()
+        super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         icon_path = resource_path("icon.ico")
@@ -52,67 +54,99 @@ class MainWindow(QMainWindow):
         self.ui.messageBox = QMessageBox(self.ui.centralwidget)
         self.ui.messageBox.setWindowTitle(" ")
         self.all_hids = hid.find_all_hid_devices()
-        self.currentIndex = 0
+        self.current_index = 0
 
         # selects
-        self.ui.deviceBox.activated.connect(self.selectDevice)
+        self.ui.deviceBox.activated.connect(self.select_device)
 
         # buttons
-        self.ui.forwardButton.clicked.connect(self.addResult)
-        self.ui.backwardButton.clicked.connect(self.removeResult)
-        self.ui.leftMonitorSelect.clicked.connect(
-            lambda: self.setMonitor("left"))
-        self.ui.rightMonitorSelect.clicked.connect(
-            lambda: self.setMonitor("right"))
-        self.ui.lightThemeButton.clicked.connect(
-            lambda: self.setTheme("light"))
-        self.ui.darkThemeButton.clicked.connect(
-            lambda: self.setTheme("dark"))
-        self.ui.prideThemeButton.clicked.connect(
-            lambda: self.setTheme("pride"))
-        self.ui.saveButton.clicked.connect(self.saveData)
-        self.ui.inputFileButton.clicked.connect(self.chooseInputFile)
-        self.ui.outputFileButton.clicked.connect(self.chooseOutputFile)
-        self.ui.inputFileButton.setStyleSheet(
-            'text-align:left;padding:5px;')
-        self.ui.outputFileButton.setStyleSheet(
-            'text-align:left;padding:5px;')
-        self.ui.resetButton.clicked.connect(self.resetValues)
-        self.ui.restoreButton.clicked.connect(self.restoreConfig)
+        self.ui.forwardButton.clicked.connect(self.add_result)
+        self.ui.backwardButton.clicked.connect(self.remove_result)
+        self.ui.leftMonitorSelect.clicked.connect(lambda: self.set_monitor("left"))
+        self.ui.rightMonitorSelect.clicked.connect(lambda: self.set_monitor("right"))
+        self.ui.lightThemeButton.clicked.connect(lambda: self.setTheme("light"))
+        self.ui.darkThemeButton.clicked.connect(lambda: self.setTheme("dark"))
+        self.ui.prideThemeButton.clicked.connect(lambda: self.setTheme("pride"))
+        self.ui.saveButton.clicked.connect(self.save_data)
+        self.ui.inputFileButton.clicked.connect(self.choose_input_file)
+        self.ui.outputFileButton.clicked.connect(self.choose_output_file)
+        self.ui.inputFileButton.setStyleSheet('text-align:left;padding:5px;')
+        self.ui.outputFileButton.setStyleSheet('text-align:left;padding:5px;')
+        self.ui.resetButton.clicked.connect(self.reset_values)
+        self.ui.restoreButton.clicked.connect(self.restore_config)
 
         # inputs
         self.ui.leftLNumberInput.textEdited.connect(
-            lambda: self.changeText(self.ui.leftLNumberInput))
+            lambda: self.change_text(self.ui.leftLNumberInput))
         self.ui.rightLNumberInput.textEdited.connect(
-            lambda: self.changeText(self.ui.rightLNumberInput))
+            lambda: self.change_text(self.ui.rightLNumberInput))
         self.ui.leftLNumberInput.textEdited.connect(
-            self.changeOutputFilename)
+            self.change_output_filename)
         self.ui.rightLNumberInput.textEdited.connect(
-            self.changeOutputFilename)
+            self.change_output_filename)
         self.ui.leftTesterInput.textEdited.connect(
-            lambda: self.changeText(self.ui.leftTesterInput))
+            lambda: self.change_text(self.ui.leftTesterInput))
         self.ui.rightTesterInput.textEdited.connect(
-            lambda: self.changeText(self.ui.rightTesterInput))
+            lambda: self.change_text(self.ui.rightTesterInput))
 
-        self.threadpool = QThreadPool()
+        self.thread_pool = QThreadPool()
+        self.worker = None
+        self.repository = None
         self.device = None
-        self.currentMeasurement = None
-        self.rawValue = None
+        self.current_measurement = None
+        self.raw_value = None
 
-    def restoreConfig(self):
-        configFile = "config.json"
-        with open(configFile, "w+") as f:
-            f.write(json.dumps(defaults))
+    def configure(self):
+        self.repository = Repository()
+        self.set_theme(self.repository.theme)
+        self.set_monitor("left")
+        self.set_save_button_disabled()
+
+        # config tables
+        self.ui.leftTableWidget.setRowCount(len(self.repository.left_results))
+        self.ui.rightTableWidget.setRowCount(len(self.repository.right_results))
+        self.ui.rightTableWidget.clicked.connect(self.set_current_index)
+        self.ui.leftTableWidget.clicked.connect(self.set_current_index)
+        self.ui.leftTableWidget.setHorizontalHeaderLabels(
+            ['Nimi', 'Arvo', 'Solu'])
+        self.ui.rightTableWidget.setHorizontalHeaderLabels(
+            ['Nimi', 'Arvo', 'Solu'])
+
+        self.ui.leftTableWidget.setAlternatingRowColors(True)
+        self.ui.rightTableWidget.setAlternatingRowColors(True)
+
+        # populate tables
+        for index, result in enumerate(self.repository.left_results):
+            self.ui.leftTableWidget.setItem(
+                index, 0, QTableWidgetItem(result.name))
+            self.ui.leftTableWidget.setItem(
+                index, 2, QTableWidgetItem(result.cell))
+
+        for index, result in enumerate(self.repository.right_results):
+            self.ui.rightTableWidget.setItem(
+                index, 0, QTableWidgetItem(result.name))
+            self.ui.rightTableWidget.setItem(
+                index, 2, QTableWidgetItem(result.cell))
+
+        self.ui.leftTableWidget.itemChanged.connect(self.save_table_item)
+        self.ui.rightTableWidget.itemChanged.connect(self.save_table_item)
+
+        if self.repository.input_file and os.path.isfile(
+                self.repository.input_file):
+            self.ui.inputFileButton.setText(self.repository.input_file)
+
+    def restore_config(self):
+        with open(CONFIG_FILE, "w+") as file:
+            file.write(json.dumps(defaults, indent=2))
         self.configure()
 
-    def resetValues(self):
-        for index, result in enumerate(self.db.results):
-            if index < len(self.db.leftResults):
-                item = self.ui.leftTableWidget.takeItem(
-                    index, 1)
+    def reset_values(self):
+        for index, result in enumerate(self.repository.results):
+            if index < len(self.repository.left_results):
+                item = self.ui.leftTableWidget.takeItem(index, 1)
             else:
                 item = self.ui.rightTableWidget.takeItem(
-                    index - len(self.db.leftResults), 1)
+                    index - len(self.repository.left_results), 1)
             del item
 
             try:
@@ -120,92 +154,89 @@ class MainWindow(QMainWindow):
             except KeyError:
                 pass
 
-        self.currentIndex = 0
+        self.current_index = 0
 
         self.ui.progressBar.setValue(
-            self.currentIndex / len(self.db.results) * 100)
+            self.current_index / len(self.repository.results) * 100)
 
-        self.setMonitor("left")
+        self.set_monitor("left")
 
-    def chooseInputFile(self):
+    def choose_input_file(self):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        fileName, _ = QFileDialog.getOpenFileName(
-            self, "", "C:/Mittaus", "Excel file(*.xls *.xlsx *.xlsm)", options=options)
-        if fileName:
-            self.ui.inputFileButton.setText(fileName)
-            self.db.inputFile = fileName
-            self.db.freeze()
-            self.setSaveButtonDisabled()
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "", RESULTS_FOLDER, "Excel file(*.xls *.xlsx *.xlsm)", options=options)
+        if file_name:
+            self.ui.inputFileButton.setText(file_name)
+            self.repository.input_file = file_name
+            self.repository.freeze()
+            self.set_save_button_disabled()
 
-    def chooseOutputFile(self):
+    def choose_output_file(self):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        fileName, _ = QFileDialog.getSaveFileName(
-            self, "", "C:/Mittaus", "Excel file(*.xls *.xlsx *.xlsm)", options=options)
-        if fileName:
-            if "." not in fileName:
-                fileName = fileName + ".xlsm"
-            elif not fileName.split(".")[-1] == "xlsm":
-                fileName = ".".join(fileName.split(".")[:-1] + "xlsm")
-            self.ui.outputFileButton.setText(fileName)
-            self.db.outputFile = fileName
-            self.setSaveButtonDisabled()
+        file_name, _ = QFileDialog.getSaveFileName(
+            self, "", RESULTS_FOLDER, "Excel file(*.xls *.xlsx *.xlsm)", options=options)
+        if file_name:
+            if "." not in file_name:
+                file_name = file_name + ".xlsx"
+            elif not file_name.split(".")[-1] == "xlsx":
+                file_name = ".".join(file_name.split(".")[:-1] + ["xlsx"])
+            self.ui.outputFileButton.setText(file_name)
+            self.repository.output_file = file_name
+            self.set_save_button_disabled()
 
-    def saveData(self):
+    def save_data(self):
         try:
             # suppress excel warnings
             warnings.filterwarnings("ignore")
 
             # make a copy of base excel file
-            copyfile(self.db.inputFile,
-                     self.db.outputFile)
+            copyfile(self.repository.input_file, self.repository.output_file)
 
             # load workbook and activate worksheet
-            workbook = load_workbook(
-                self.db.outputFile, keep_vba=True)
+            workbook = Workbook()
+            workbook.open(self.repository.output_file)
             worksheet = workbook.active
 
-            if self.db.leftLNumber.value:
-                worksheet[self.db.leftLNumber.cell
-                          ] = self.db.leftLNumber.value
+            if self.repository.left_l_number.value:
+                worksheet.cell(self.repository.left_l_number.cell).value = str(self.repository.left_l_number.value)
 
-            if self.db.rightLNumber.value:
-                worksheet[self.db.rightLNumber.cell
-                          ] = self.db.rightLNumber.value
+            if self.repository.right_l_number.value:
+                worksheet.cell(self.repository.right_l_number.cell).value = str(self.repository.right_l_number.value)
 
-            if self.db.leftTester.value:
-                worksheet[self.db.leftTester.cell
-                          ] = self.db.leftTester.value
+            if self.repository.left_tester.value:
+                worksheet.cell(self.repository.left_tester.cell).value = str(self.repository.left_tester.value)
 
-            if self.db.rightTester.value:
-                worksheet[self.db.rightTester.cell
-                          ] = self.db.rightTester.value
+            if self.repository.right_tester.value:
+                worksheet.cell(self.repository.right_tester.cell).value = str(self.repository.right_tester.value)
 
             # input measurements
-            for result in self.db.results:
+            for result in self.repository.results:
                 if result.value:
-                    worksheet[result.cell] = float(
-                        result.value)
+                    worksheet[result.cell] = float(result.value)
 
             # save excel
-            workbook.save(self.db.outputFile)
+            workbook.save(self.repository.output_file)
+            workbook.close()
+
             self.ui.messageBox.setText(
-                "Tallennettu tiedostoon {0}.".format(self.db.outputFile))
+                "Tallennettu tiedostoon {0}.".format(
+                    self.repository.output_file))
             self.ui.messageBox.show()
 
         # if file is used by another process
-        except PermissionError as e:
+        except PermissionError:
             self.ui.messageBox.setText(
                 "Excel-tiedosto on auki toisessa ikkunassa. Ole hyvä ja sulje tiedosto.")
             self.ui.messageBox.show()
         # if base excel file doesn't exist
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             self.ui.messageBox.setText(
                 "Excel-tiedostoa ei löydy. Ole hyvä ja valitse tiedosto uudelleen.")
             self.ui.messageBox.show()
 
-    def setMonitor(self, monitor):
+    def set_monitor(self, monitor):
         if monitor == "right":
             self.ui.leftTableWidget.hide()
             self.ui.rightTableWidget.show()
@@ -217,7 +248,7 @@ class MainWindow(QMainWindow):
             self.ui.leftMonitorSelect.setChecked(True)
             self.ui.rightMonitorSelect.setChecked(False)
 
-    def setTheme(self, theme):
+    def set_theme(self, theme):
         if theme == "dark":
             self.ui.darkThemeButton.setChecked(True)
             stylesheet = styles.base + styles.dark
@@ -228,84 +259,46 @@ class MainWindow(QMainWindow):
             self.ui.lightThemeButton.setChecked(True)
             stylesheet = styles.base + styles.light
         self.setStyleSheet(stylesheet)
-        self.db.theme = theme
-        self.db.freeze()
+        self.repository.theme = theme
+        self.repository.freeze()
 
-    def setCurrentIndex(self, row):
-        if self.ui.leftMonitorSelect.isChecked() == True:
-            self.currentIndex = row.row()
+    def set_current_index(self, row):
+        if self.ui.leftMonitorSelect.isChecked():
+            self.current_index = row.row()
         else:
-            self.currentIndex = row.row() + len(self.db.leftResults)
+            self.current_index = row.row() + len(self.repository.left_results)
 
-    def setSaveButtonDisabled(self):
-        if self.db.inputFile == "" or self.db.outputFile == "":
+    def set_save_button_disabled(self):
+        if self.repository.input_file == "" or self.repository.output_file == "":
             self.ui.saveButton.setDisabled(True)
         else:
             self.ui.saveButton.setDisabled(False)
 
-    def configure(self):
-        self.db = Repository()
-        self.setTheme(self.db.theme)
-        self.setMonitor("left")
-        self.setSaveButtonDisabled()
-
-        # config tables
-        self.ui.leftTableWidget.setRowCount(len(self.db.leftResults))
-        self.ui.rightTableWidget.setRowCount(len(self.db.rightResults))
-        self.ui.rightTableWidget.clicked.connect(self.setCurrentIndex)
-        self.ui.leftTableWidget.clicked.connect(self.setCurrentIndex)
-        self.ui.leftTableWidget.setHorizontalHeaderLabels(
-            ['Nimi', 'Arvo', 'Solu'])
-        self.ui.rightTableWidget.setHorizontalHeaderLabels(
-            ['Nimi', 'Arvo', 'Solu'])
-
-        self.ui.leftTableWidget.setAlternatingRowColors(True)
-        self.ui.rightTableWidget.setAlternatingRowColors(True)
-
-        # populate tables
-        for index, result in enumerate(self.db.leftResults):
-            self.ui.leftTableWidget.setItem(
-                index, 0, QTableWidgetItem(result.name))
-            self.ui.leftTableWidget.setItem(
-                index, 2, QTableWidgetItem(result.cell))
-
-        for index, result in enumerate(self.db.rightResults):
-            self.ui.rightTableWidget.setItem(
-                index, 0, QTableWidgetItem(result.name))
-            self.ui.rightTableWidget.setItem(
-                index, 2, QTableWidgetItem(result.cell))
-
-        self.ui.leftTableWidget.itemChanged.connect(
-            self.saveTableItem)
-        self.ui.rightTableWidget.itemChanged.connect(
-            self.saveTableItem)
-
-        if self.db.inputFile and os.path.isfile(self.db.inputFile):
-            self.ui.inputFileButton.setText(self.db.inputFile)
-
-    def saveTableItem(self, item):
+    def save_table_item(self, item):
         if not item.column() == 1:
             if "left" in item.tableWidget().objectName():
                 if item.column() == 0:
-                    self.db.leftResults[item.row()].name = item.text()
+                    self.repository.left_results[item.row()].name = item.text()
                 elif item.column() == 2:
-                    self.db.leftResults[item.row()].cell = item.text()
+                    self.repository.left_results[item.row()].cell = item.text()
             else:
                 if item.column() == 0:
-                    self.db.rightResults[item.row()].name = item.text()
+                    self.repository.right_results[item.row(
+                    )].name = item.text()
                 elif item.column() == 2:
-                    self.db.rightResults[item.row()].cell = item.text()
-            self.db.freeze()
+                    self.repository.right_results[item.row(
+                    )].cell = item.text()
+            self.repository.freeze()
 
-    def changeOutputFilename(self):
-        basename = "/".join(self.db.inputFile.split("/")[0:-1])
+    def change_output_filename(self):
+        basename = "/".join(self.repository.input_file.split("/")[0:-1])
 
         if not basename:
-            basename = "C:/Mittaus"
+            basename = RESULTS_FOLDER
 
         timestamp = datetime.datetime.now().strftime("%d%m%y")
-        leftl = self.db.leftLNumber.value
-        rightl = self.db.rightLNumber.value
+        leftl = self.repository.left_l_number.value
+        rightl = self.repository.right_l_number.value
 
         filename = basename + "/" + leftl
 
@@ -319,34 +312,33 @@ class MainWindow(QMainWindow):
             else:
                 filename = filename + "-" + rightl
 
-        filename = filename + "_" + timestamp + ".xlsm"
+        filename = filename + "_" + timestamp + ".xlsx"
 
         self.ui.outputFileButton.setText(filename)
-        self.db.outputFile = filename
-        self.setSaveButtonDisabled()
+        self.repository.output_file = filename
+        self.set_save_button_disabled()
 
-    def changeText(self, textInput):
-        if textInput == self.ui.leftLNumberInput:
-            self.db.leftLNumber.value = textInput.text()
-        if textInput == self.ui.rightLNumberInput:
-            self.db.rightLNumber.value = textInput.text()
-        if textInput == self.ui.leftTesterInput:
-            self.db.leftTester.value = textInput.text()
-        if textInput == self.ui.rightTesterInput:
-            self.db.rightTester.value = textInput.text()
+    def change_text(self, text_input):
+        if text_input == self.ui.leftLNumberInput:
+            self.repository.left_l_number.value = text_input.text()
+        if text_input == self.ui.rightLNumberInput:
+            self.repository.right_l_number.value = text_input.text()
+        if text_input == self.ui.leftTesterInput:
+            self.repository.left_tester.value = text_input.text()
+        if text_input == self.ui.rightTesterInput:
+            self.repository.right_tester.value = text_input.text()
 
-    def showDevices(self):
+    def show_devices(self):
         """
         list connected usb devices
         """
 
         for index, device in enumerate(self.all_hids, 1):
-            device_name = unicode("{0.vendor_name} {0.product_name}".format(
-                device, device.vendor_id, device.product_id))
+            device_name = unicode("{0.vendor_name} {0.product_name}".format(device))
             self.ui.deviceBox.addItem(
                 "{0} => {1}".format(index, device_name))
 
-    def sendData(self):
+    def send_data(self):
         """
         configure data handler and send data
         """
@@ -364,17 +356,17 @@ class MainWindow(QMainWindow):
                 # just keep the device opened to receive events
                 sleep(0.5)
         # wrong input device
-        except Exception as e:
+        except Exception as error:
             self.ui.measurementLabel.setText("Ei signaalia")
-            self.currentMeasurement = None
+            self.current_measurement = None
             self.ui.lcdNumber.display(0)
             self.ui.leftMonitorLabel.setText("VASEN MONITORI")
             self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
-            print(str(e))
+            print(str(error))
             # popup: No input data, try another device
         self.device.close()
 
-    def selectDevice(self, selection):
+    def select_device(self, selection):
         # if another device is open, close it
         if self.device:
             self.device.close()
@@ -382,8 +374,8 @@ class MainWindow(QMainWindow):
         self.device = self.all_hids[selection]
 
         # use worker class to send data to handler in another thread
-        self.worker = Worker(self.sendData)
-        self.threadpool.start(self.worker)
+        self.worker = Worker(self.send_data)
+        self.thread_pool.start(self.worker)
 
         self.setFocus()
 
@@ -393,12 +385,12 @@ class MainWindow(QMainWindow):
         """
 
         # if all measurements taken, format excel and exit program
-        if self.currentIndex >= len(self.db.results):
+        if self.current_index >= len(self.repository.results):
             return
 
         try:
             # format value to string #.########
-            self.rawValue = chr(data[2]) + "." + \
+            self.raw_value = chr(data[2]) + "." + \
                 chr(data[4]) + \
                 chr(data[5]) + \
                 chr(data[6]) + \
@@ -407,25 +399,25 @@ class MainWindow(QMainWindow):
                 chr(data[9]) + \
                 chr(data[10]) + \
                 chr(data[11])
-            self.currentMeasurement = "{:.3f}".format(
-                round(float(self.rawValue), 3))
+            self.current_measurement = "{:.3f}".format(
+                round(float(self.raw_value), 3))
 
-            self.ui.lcdNumber.display(self.currentMeasurement)
+            self.ui.lcdNumber.display(self.current_measurement)
 
-            self.measuringAnimation()
+            self.measuring_animation()
 
-            if self.currentIndex < len(self.db.leftResults):
+            if self.current_index < len(self.repository.left_results):
                 self.ui.leftMonitorLabel.setText(
-                    self.db.results[self.currentIndex].name)
+                    self.repository.results[self.current_index].name)
                 self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
             else:
                 self.ui.leftMonitorLabel.setText("VASEN MONITORI")
                 self.ui.rightMonitorLabel.setText(
-                    self.db.results[self.currentIndex].name)
-        except Exception as e:
-            print(str(e))
+                    self.repository.results[self.current_index].name)
+        except Exception as error:
+            print(str(error))
 
-    def measuringAnimation(self):
+    def measuring_animation(self):
         if self.ui.measurementLabel.text() == "Mitataan":
             self.ui.measurementLabel.setText("Mitataan.")
         if self.ui.measurementLabel.text() == "Mitataan.":
@@ -435,62 +427,65 @@ class MainWindow(QMainWindow):
         else:
             self.ui.measurementLabel.setText("Mitataan")
 
-    def addResult(self):
-        if self.currentMeasurement:
-            if self.currentIndex < len(self.db.leftResults):
+    def add_result(self):
+        if self.current_measurement:
+            if self.current_index < len(self.repository.left_results):
                 self.ui.leftTableWidget.setItem(
-                    self.currentIndex, 1, QTableWidgetItem(self.currentMeasurement))
-                self.setMonitor("left")
+                    self.current_index, 1, QTableWidgetItem(
+                        self.current_measurement))
+                self.set_monitor("left")
             else:
                 self.ui.rightTableWidget.setItem(
-                    self.currentIndex - len(self.db.leftResults), 1, QTableWidgetItem(self.currentMeasurement))
-                self.setMonitor("right")
+                    self.current_index - len(
+                        self.repository.left_results), 1, QTableWidgetItem(
+                        self.current_measurement))
+                self.set_monitor("right")
 
             try:
-                self.db.results[self.currentIndex].value = self.rawValue
-                self.currentIndex = self.currentIndex + 1
+                self.repository.results[self.current_index].value = self.raw_value
+                self.current_index = self.current_index + 1
 
                 self.ui.progressBar.setValue(
-                    self.currentIndex / len(self.db.results) * 100)
-            except IndexError as e:
-                print(str(e))
+                    self.current_index / len(self.repository.results) * 100)
+            except IndexError as error:
+                print(str(error))
 
-            if self.currentIndex >= len(self.db.results):
+            if self.current_index >= len(self.repository.results):
                 self.ui.measurementLabel.setText("Valmis")
                 self.ui.leftMonitorLabel.setText("VASEN MONITORI")
                 self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
-                self.saveData()
+                self.save_data()
 
-    def removeResult(self):
-        if self.currentIndex > 0:
-            if self.currentIndex - 1 < len(self.db.leftResults):
+    def remove_result(self):
+        if self.current_index > 0:
+            if self.current_index - 1 < len(self.repository.left_results):
                 item = self.ui.leftTableWidget.takeItem(
-                    self.currentIndex - 1, 1)
-                self.setMonitor("left")
+                    self.current_index - 1, 1)
+                self.set_monitor("left")
             else:
                 item = self.ui.rightTableWidget.takeItem(
-                    self.currentIndex - 1 - len(self.db.leftResults), 1)
-                self.setMonitor("right")
+                    self.current_index - 1 - len(self.repository.left_results), 1)
+                self.set_monitor("right")
             del item
 
             try:
-                self.db.results[self.currentIndex - 1].value = ""
+                self.repository.results[self.current_index - 1].value = ""
             except KeyError:
                 pass
 
-            self.currentIndex = self.currentIndex - 1
+            self.current_index = self.current_index - 1
 
             self.ui.progressBar.setValue(
-                self.currentIndex / len(self.db.results) * 100)
+                self.current_index / len(self.repository.results) * 100)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_F5:
             python = sys.executable
             os.execl(python, python, * sys.argv)
         if event.key() == Qt.Key_Return:
-            self.addResult()
+            self.add_result()
         if event.key() == Qt.Key_Backspace:
-            self.removeResult()
+            self.remove_result()
         if event.key() == Qt.Key_Escape:
             self.close()
 
@@ -500,7 +495,7 @@ def main():
     app.setStyle("fusion")
     window = MainWindow()
     window.configure()
-    window.showDevices()
+    window.show_devices()
     window.show()
     sys.exit(app.exec_())
 
