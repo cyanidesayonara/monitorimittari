@@ -64,9 +64,9 @@ class MainWindow(QMainWindow):
         self.ui.backwardButton.clicked.connect(self.remove_result)
         self.ui.leftMonitorSelect.clicked.connect(lambda: self.set_monitor("left"))
         self.ui.rightMonitorSelect.clicked.connect(lambda: self.set_monitor("right"))
-        self.ui.lightThemeButton.clicked.connect(lambda: self.setTheme("light"))
-        self.ui.darkThemeButton.clicked.connect(lambda: self.setTheme("dark"))
-        self.ui.prideThemeButton.clicked.connect(lambda: self.setTheme("pride"))
+        self.ui.lightThemeButton.clicked.connect(lambda: self.set_theme("light"))
+        self.ui.darkThemeButton.clicked.connect(lambda: self.set_theme("dark"))
+        self.ui.prideThemeButton.clicked.connect(lambda: self.set_theme("pride"))
         self.ui.saveButton.clicked.connect(self.save_data)
         self.ui.inputFileButton.clicked.connect(self.choose_input_file)
         self.ui.outputFileButton.clicked.connect(self.choose_output_file)
@@ -76,18 +76,12 @@ class MainWindow(QMainWindow):
         self.ui.restoreButton.clicked.connect(self.restore_config)
 
         # inputs
-        self.ui.leftLNumberInput.textEdited.connect(
-            lambda: self.change_text(self.ui.leftLNumberInput))
-        self.ui.rightLNumberInput.textEdited.connect(
-            lambda: self.change_text(self.ui.rightLNumberInput))
-        self.ui.leftLNumberInput.textEdited.connect(
-            self.change_output_filename)
-        self.ui.rightLNumberInput.textEdited.connect(
-            self.change_output_filename)
-        self.ui.leftTesterInput.textEdited.connect(
-            lambda: self.change_text(self.ui.leftTesterInput))
-        self.ui.rightTesterInput.textEdited.connect(
-            lambda: self.change_text(self.ui.rightTesterInput))
+        self.ui.leftLNumberInput.textEdited.connect(lambda: self.change_text(self.ui.leftLNumberInput))
+        self.ui.rightLNumberInput.textEdited.connect(lambda: self.change_text(self.ui.rightLNumberInput))
+        self.ui.leftLNumberInput.textEdited.connect(self.change_output_filename)
+        self.ui.rightLNumberInput.textEdited.connect(self.change_output_filename)
+        self.ui.leftTesterInput.textEdited.connect(lambda: self.change_text(self.ui.leftTesterInput))
+        self.ui.rightTesterInput.textEdited.connect(lambda: self.change_text(self.ui.rightTesterInput))
 
         self.thread_pool = QThreadPool()
         self.worker = None
@@ -107,32 +101,24 @@ class MainWindow(QMainWindow):
         self.ui.rightTableWidget.setRowCount(len(self.repository.right_results))
         self.ui.rightTableWidget.clicked.connect(self.set_current_index)
         self.ui.leftTableWidget.clicked.connect(self.set_current_index)
-        self.ui.leftTableWidget.setHorizontalHeaderLabels(
-            ['Nimi', 'Arvo', 'Solu'])
-        self.ui.rightTableWidget.setHorizontalHeaderLabels(
-            ['Nimi', 'Arvo', 'Solu'])
-
+        self.ui.leftTableWidget.setHorizontalHeaderLabels(['Nimi', 'Arvo', 'Solu'])
+        self.ui.rightTableWidget.setHorizontalHeaderLabels(['Nimi', 'Arvo', 'Solu'])
         self.ui.leftTableWidget.setAlternatingRowColors(True)
         self.ui.rightTableWidget.setAlternatingRowColors(True)
 
         # populate tables
         for index, result in enumerate(self.repository.left_results):
-            self.ui.leftTableWidget.setItem(
-                index, 0, QTableWidgetItem(result.name))
-            self.ui.leftTableWidget.setItem(
-                index, 2, QTableWidgetItem(result.cell))
+            self.ui.leftTableWidget.setItem(index, 0, QTableWidgetItem(result.name))
+            self.ui.leftTableWidget.setItem(index, 2, QTableWidgetItem(result.cell))
 
         for index, result in enumerate(self.repository.right_results):
-            self.ui.rightTableWidget.setItem(
-                index, 0, QTableWidgetItem(result.name))
-            self.ui.rightTableWidget.setItem(
-                index, 2, QTableWidgetItem(result.cell))
+            self.ui.rightTableWidget.setItem(index, 0, QTableWidgetItem(result.name))
+            self.ui.rightTableWidget.setItem(index, 2, QTableWidgetItem(result.cell))
 
         self.ui.leftTableWidget.itemChanged.connect(self.save_table_item)
         self.ui.rightTableWidget.itemChanged.connect(self.save_table_item)
 
-        if self.repository.input_file and os.path.isfile(
-                self.repository.input_file):
+        if self.repository.input_file and os.path.isfile(self.repository.input_file):
             self.ui.inputFileButton.setText(self.repository.input_file)
 
     def restore_config(self):
@@ -145,8 +131,7 @@ class MainWindow(QMainWindow):
             if index < len(self.repository.left_results):
                 item = self.ui.leftTableWidget.takeItem(index, 1)
             else:
-                item = self.ui.rightTableWidget.takeItem(
-                    index - len(self.repository.left_results), 1)
+                item = self.ui.rightTableWidget.takeItem(index - len(self.repository.left_results), 1)
             del item
 
             try:
@@ -155,10 +140,7 @@ class MainWindow(QMainWindow):
                 pass
 
         self.current_index = 0
-
-        self.ui.progressBar.setValue(
-            self.current_index / len(self.repository.results) * 100)
-
+        self.ui.progressBar.setValue(self.current_index / len(self.repository.results) * 100)
         self.set_monitor("left")
 
     def choose_input_file(self):
@@ -220,20 +202,16 @@ class MainWindow(QMainWindow):
             workbook.save(self.repository.output_file)
             workbook.close()
 
-            self.ui.messageBox.setText(
-                "Tallennettu tiedostoon {0}.".format(
-                    self.repository.output_file))
+            self.ui.messageBox.setText("Tallennettu tiedostoon {0}.".format(self.repository.output_file))
             self.ui.messageBox.show()
 
         # if file is used by another process
         except PermissionError:
-            self.ui.messageBox.setText(
-                "Excel-tiedosto on auki toisessa ikkunassa. Ole hyvä ja sulje tiedosto.")
+            self.ui.messageBox.setText("Excel-tiedosto on auki toisessa ikkunassa. Ole hyvä ja sulje tiedosto.")
             self.ui.messageBox.show()
         # if base excel file doesn't exist
         except FileNotFoundError:
-            self.ui.messageBox.setText(
-                "Excel-tiedostoa ei löydy. Ole hyvä ja valitse tiedosto uudelleen.")
+            self.ui.messageBox.setText("Excel-tiedostoa ei löydy. Ole hyvä ja valitse tiedosto uudelleen.")
             self.ui.messageBox.show()
 
     def set_monitor(self, monitor):
@@ -283,11 +261,9 @@ class MainWindow(QMainWindow):
                     self.repository.left_results[item.row()].cell = item.text()
             else:
                 if item.column() == 0:
-                    self.repository.right_results[item.row(
-                    )].name = item.text()
+                    self.repository.right_results[item.row()].name = item.text()
                 elif item.column() == 2:
-                    self.repository.right_results[item.row(
-                    )].cell = item.text()
+                    self.repository.right_results[item.row()].cell = item.text()
             self.repository.freeze()
 
     def change_output_filename(self):
@@ -297,20 +273,20 @@ class MainWindow(QMainWindow):
             basename = RESULTS_FOLDER
 
         timestamp = datetime.datetime.now().strftime("%d%m%y")
-        leftl = self.repository.left_l_number.value
-        rightl = self.repository.right_l_number.value
+        left_l_number = self.repository.left_l_number.value
+        right_l_number = self.repository.right_l_number.value
 
-        filename = basename + "/" + leftl
+        filename = basename + "/" + left_l_number
 
-        if rightl:
-            if leftl == rightl:
-                filename = filename + "-" + rightl
-            elif leftl[:-1] == rightl[:-1]:
-                filename = filename + "-" + rightl[-1:]
-            elif leftl[:-2] == rightl[:-2]:
-                filename = filename + "-" + rightl[-2:]
+        if right_l_number:
+            if left_l_number == right_l_number:
+                filename = filename + "-" + right_l_number
+            elif left_l_number[:-1] == right_l_number[:-1]:
+                filename = filename + "-" + right_l_number[-1:]
+            elif left_l_number[:-2] == right_l_number[:-2]:
+                filename = filename + "-" + right_l_number[-2:]
             else:
-                filename = filename + "-" + rightl
+                filename = filename + "-" + right_l_number
 
         filename = filename + "_" + timestamp + ".xlsx"
 
@@ -335,8 +311,7 @@ class MainWindow(QMainWindow):
 
         for index, device in enumerate(self.all_hids, 1):
             device_name = unicode("{0.vendor_name} {0.product_name}".format(device))
-            self.ui.deviceBox.addItem(
-                "{0} => {1}".format(index, device_name))
+            self.ui.deviceBox.addItem("{0} => {1}".format(index, device_name))
 
     def send_data(self):
         """
@@ -399,21 +374,18 @@ class MainWindow(QMainWindow):
                 chr(data[9]) + \
                 chr(data[10]) + \
                 chr(data[11])
-            self.current_measurement = "{:.3f}".format(
-                round(float(self.raw_value), 3))
+            self.current_measurement = "{:.3f}".format(round(float(self.raw_value), 3))
 
             self.ui.lcdNumber.display(self.current_measurement)
 
             self.measuring_animation()
 
             if self.current_index < len(self.repository.left_results):
-                self.ui.leftMonitorLabel.setText(
-                    self.repository.results[self.current_index].name)
+                self.ui.leftMonitorLabel.setText(self.repository.results[self.current_index].name)
                 self.ui.rightMonitorLabel.setText("OIKEA MONITORI")
             else:
                 self.ui.leftMonitorLabel.setText("VASEN MONITORI")
-                self.ui.rightMonitorLabel.setText(
-                    self.repository.results[self.current_index].name)
+                self.ui.rightMonitorLabel.setText(self.repository.results[self.current_index].name)
         except Exception as error:
             print(str(error))
 
@@ -431,13 +403,11 @@ class MainWindow(QMainWindow):
         if self.current_measurement:
             if self.current_index < len(self.repository.left_results):
                 self.ui.leftTableWidget.setItem(
-                    self.current_index, 1, QTableWidgetItem(
-                        self.current_measurement))
+                    self.current_index, 1, QTableWidgetItem(self.current_measurement))
                 self.set_monitor("left")
             else:
                 self.ui.rightTableWidget.setItem(
-                    self.current_index - len(
-                        self.repository.left_results), 1, QTableWidgetItem(
+                    self.current_index - len(self.repository.left_results), 1, QTableWidgetItem(
                         self.current_measurement))
                 self.set_monitor("right")
 
@@ -445,8 +415,7 @@ class MainWindow(QMainWindow):
                 self.repository.results[self.current_index].value = self.raw_value
                 self.current_index = self.current_index + 1
 
-                self.ui.progressBar.setValue(
-                    self.current_index / len(self.repository.results) * 100)
+                self.ui.progressBar.setValue(self.current_index / len(self.repository.results) * 100)
             except IndexError as error:
                 print(str(error))
 
@@ -459,8 +428,7 @@ class MainWindow(QMainWindow):
     def remove_result(self):
         if self.current_index > 0:
             if self.current_index - 1 < len(self.repository.left_results):
-                item = self.ui.leftTableWidget.takeItem(
-                    self.current_index - 1, 1)
+                item = self.ui.leftTableWidget.takeItem(self.current_index - 1, 1)
                 self.set_monitor("left")
             else:
                 item = self.ui.rightTableWidget.takeItem(
@@ -475,8 +443,7 @@ class MainWindow(QMainWindow):
 
             self.current_index = self.current_index - 1
 
-            self.ui.progressBar.setValue(
-                self.current_index / len(self.repository.results) * 100)
+            self.ui.progressBar.setValue(self.current_index / len(self.repository.results) * 100)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_F5:
